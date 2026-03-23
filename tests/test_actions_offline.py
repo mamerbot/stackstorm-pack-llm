@@ -387,9 +387,9 @@ def test_llm_chat_complete_agent_cli_claude_code_json():
             "agent_cli_binary": "claude",
         }
     )
-    payload = json.dumps(
-        {"type": "result", "subtype": "success", "result": "hello-claude"}
-    ).encode("utf-8")
+    payload = json.dumps({"type": "result", "subtype": "success", "result": "hello-claude"}).encode(
+        "utf-8"
+    )
     with mock.patch.object(ac.subprocess, "run") as run:
         run.return_value = CompletedProcess(
             ["claude", "-p", "u", "--output-format", "json", "--bare"],
