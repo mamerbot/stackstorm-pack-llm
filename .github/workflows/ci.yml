@@ -126,6 +126,10 @@ jobs:
             sleep 5
           done
 
+          # st2-docker ships before all bundled content is registered; without this,
+          # st2 pack install fails with: Action "packs.install" cannot be found.
+          docker compose exec -T st2client bash -lc 'st2ctl reload --register-all'
+
           # Same path shape as host file://$GITHUB_WORKSPACE, mounted at packs.dev/<pack_ref>/
           docker compose exec -T st2client bash -lc \
             'st2 pack install file:///opt/stackstorm/packs.dev/llm_plan_task'
