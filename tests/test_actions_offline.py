@@ -250,6 +250,75 @@ def test_tasks_from_plan_maps_task_bundle_validation_error():
     assert err == "bundle check failed"
 
 
+def test_validate_plan_valid_inline():
+    mod = _load_action_module("validate_plan")
+    act = mod.ValidatePlan()
+    plan = {
+        "version": "1",
+        "goal": "g",
+        "assumptions": [],
+        "risks": [],
+        "steps": [{"id": "a", "title": "A", "description": "", "depends_on": []}],
+    }
+    ok, normalized = act.run(plan=plan)
+    assert ok is True
+    assert normalized["goal"] == "g"
+    assert normalized["steps"][0]["id"] == "a"
+
+
+def test_validate_plan_invalid_not_object():
+    mod = _load_action_module("validate_plan")
+    act = mod.ValidatePlan()
+    ok, err = act.run(plan=[1, 2, 3])
+    assert ok is False
+    assert "JSON object" in err
+
+
+def test_validate_plan_invalid_empty_steps():
+    mod = _load_action_module("validate_plan")
+    act = mod.ValidatePlan()
+    bad = {"version": "1", "goal": "g", "assumptions": [], "risks": [], "steps": []}
+    ok, err = act.run(plan=bad)
+    assert ok is False
+    assert "steps" in err and "non-empty" in err
+
+
+def test_validate_task_bundle_valid_inline():
+    mod_tasks = _load_action_module("tasks_from_plan")
+    mod_val = _load_action_module("validate_task_bundle")
+    plan = {
+        "version": "1",
+        "goal": "g",
+        "assumptions": [],
+        "risks": [],
+        "steps": [{"id": "a", "title": "A", "description": "", "depends_on": []}],
+    }
+    ok, bundle = mod_tasks.TasksFromPlan().run(plan=plan)
+    assert ok
+    ok2, again = mod_val.ValidateTaskBundle().run(bundle=bundle)
+    assert ok2 is True
+    assert again == bundle
+
+
+def test_validate_task_bundle_invalid_run_id():
+    mod_tasks = _load_action_module("tasks_from_plan")
+    mod_val = _load_action_module("validate_task_bundle")
+    plan = {
+        "version": "1",
+        "goal": "g",
+        "assumptions": [],
+        "risks": [],
+        "steps": [{"id": "a", "title": "A", "description": "", "depends_on": []}],
+    }
+    ok, bundle = mod_tasks.TasksFromPlan().run(plan=plan)
+    assert ok
+    tampered = dict(bundle)
+    tampered["run_id"] = "not-a-uuid"
+    ok2, err = mod_val.ValidateTaskBundle().run(bundle=tampered)
+    assert ok2 is False
+    assert "UUID" in err
+
+
 def test_normalize_plan_from_llm():
     mod = _load_action_module("normalize_plan_from_llm")
     inner = {

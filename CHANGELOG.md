@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Standalone StackStorm actions `validate_plan` and `validate_task_bundle` for validating
+  parsed plan and bundle objects at workflow boundaries (same logic as `normalize_plan_from_llm` /
+  `tasks_from_plan` success paths).
 - `llm_access_mode` `agent_cli` for `llm_chat_complete`: coding-agent / ACP-style access via
   `agent_cli_profile` `stdin_json_bridge` | `claude_code` | `custom`, optional `contrib/agent_cli`
   bridge notes, and subprocess-based execution (no HTTP API key in the pack for that path).

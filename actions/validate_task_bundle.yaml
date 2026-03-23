@@ -1,0 +1,15 @@
+---
+name: validate_task_bundle
+pack: llm_plan_task
+runner_type: python-script
+enabled: true
+entry_point: validate_task_bundle.py
+description: >
+  Validate and normalize a task bundle object (same rules as tasks_from_plan
+  after expansion). Returns (True, normalized_bundle) or (False,
+  TaskBundleValidationError message).
+parameters:
+  bundle:
+    type: object
+    description: Task bundle matching schemas/task_bundle.v1.json and plan_model invariants.
+    required: true

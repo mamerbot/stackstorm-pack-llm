@@ -1,0 +1,15 @@
+---
+name: validate_plan
+pack: llm_plan_task
+runner_type: python-script
+enabled: true
+entry_point: validate_plan.py
+description: >
+  Validate and normalize a plan object (same rules as plan_from_goal /
+  normalize_plan_from_llm after JSON parse). Returns (True, normalized_plan) or
+  (False, PlanValidationError message).
+parameters:
+  plan:
+    type: object
+    description: Plan object matching the llm_plan_task schema.
+    required: true

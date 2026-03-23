@@ -17,7 +17,9 @@ Actions and an Orquesta workflow for **LLM-assisted planning** and **task decomp
 | --- | --- |
 | `plan_from_goal` | Build a normalized plan from a goal; optionally merge validated JSON from an LLM. |
 | `normalize_plan_from_llm` | Parse/validate raw LLM output (including ```json fences) into a plan object. |
+| `validate_plan` | Validate/normalize an already-parsed plan object (same rules as after `normalize_plan_from_llm`); use before persisting or handing JSON across workflows. |
 | `tasks_from_plan` | Expand a validated plan into pending tasks with stable ids and dependency edges. |
+| `validate_task_bundle` | Validate/normalize a task bundle object (same checks as the success path of `tasks_from_plan`); use before persisting bundles or accepting them from another process. |
 | `llm_chat_complete` | Chat via pack config: `llm_access_mode` `http` (OpenAI-compatible `openai`/`cursor`, Anthropic `anthropic`, env API keys) or `agent_cli` (spawn Claude Code / custom argv / stdin JSON bridge on the runner). |
 | `plan_to_tasks` | Orquesta workflow chaining `plan_from_goal` → `tasks_from_plan`. |
 
@@ -46,7 +48,7 @@ The action return value (and workflow-published `bundle`) includes:
 
 Downstream runners should iterate `execution_order` (or schedule by it) when executing `action_ref` / `action_parameters`, not assume `tasks` array order matches execution safety.
 
-The **`execution_order`** field is a **dependency-safe topological ordering** of task ids: every entry in a task’s `depends_on` appears earlier in `execution_order` than that task. When multiple tasks are ready, tie-break order follows **plan step list order**, then **task id** lexicographically (see [EMT-70](/EMT/issues/EMT-70) and `_execution_order_for_tasks` in `actions/lib/plan_model.py`). Consumers should validate bundles when crossing process boundaries; runtime validation in StackStorm may be added separately (e.g. [EMT-74](/EMT/issues/EMT-74)).
+The **`execution_order`** field is a **dependency-safe topological ordering** of task ids: every entry in a task’s `depends_on` appears earlier in `execution_order` than that task. When multiple tasks are ready, tie-break order follows **plan step list order**, then **task id** lexicographically (see [EMT-70](/EMT/issues/EMT-70) and `_execution_order_for_tasks` in `actions/lib/plan_model.py`). Consumers should validate bundles when crossing process boundaries; the **`validate_task_bundle`** action exposes the same checks as a standalone StackStorm entry point (see also [EMT-118](/EMT/issues/EMT-118)). Runtime validation in StackStorm may be extended separately (e.g. [EMT-74](/EMT/issues/EMT-74)).
 
 ## Task bundle JSON schema (v1)
 
@@ -60,7 +62,7 @@ Golden examples under [`tests/fixtures/bundle_*.json`](tests/fixtures/) are vali
 
 Machine-readable contract: [`schemas/plan.v1.json`](schemas/plan.v1.json) (JSON Schema draft 2020-12). It matches the structural rules enforced by `validate_plan` in `actions/lib/plan_model.py`. **Caps** on string lengths, step counts, `action_parameters` nesting/size, and **dependency graph** checks (known step ids, acyclic `depends_on`) are enforced in Python only; the schema documents that split in its root `description`.
 
-Golden examples under [`tests/fixtures/`](tests/fixtures/) are validated in CI by `tests/test_schema_fixtures.py` using the `jsonschema` library, and each fixture is also run through `validate_plan` for parity.
+Golden examples under [`tests/fixtures/`](tests/fixtures/) are validated in CI by `tests/test_schema_fixtures.py` using the `jsonschema` library, and each fixture is also run through `validate_plan` for parity. For automation that already holds a parsed plan dict (not raw LLM text), call **`validate_plan`** to apply the same normalization and Python caps before storage or downstream actions.
 
 ```json
 {
