@@ -1,0 +1,34 @@
+{
+  "plan": {
+    "version": "1",
+    "goal": "Fixture with optional action_ref",
+    "steps": [
+      {
+        "id": "echo",
+        "title": "Echo via core.local",
+        "description": "Runs a local shell command through StackStorm.",
+        "depends_on": [],
+        "action_ref": "core.local"
+      }
+    ],
+    "assumptions": [
+      "core.local is registered in StackStorm"
+    ],
+    "risks": []
+  },
+  "tasks": [
+    {
+      "id": "task-echo",
+      "step_id": "echo",
+      "title": "Echo via core.local",
+      "description": "Runs a local shell command through StackStorm.",
+      "depends_on": [],
+      "status": "pending",
+      "action_ref": "core.local"
+    }
+  ],
+  "execution_order": [
+    "task-echo"
+  ],
+  "run_id": "b98147fd-bf22-4bb1-801d-95a26433b44a"
+}

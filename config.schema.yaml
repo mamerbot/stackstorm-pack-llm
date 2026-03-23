@@ -1,0 +1,19 @@
+---
+llm_chat_completions_url:
+  description: >
+    Optional OpenAI-compatible chat completions URL
+    (e.g. https://api.openai.com/v1/chat/completions).
+  type: string
+  required: false
+llm_model:
+  description: Model name to send when using llm_chat_complete.
+  type: string
+  required: false
+  default: gpt-4o-mini
+api_token:
+  description: >
+    Bearer token for the LLM HTTP API. Prefer StackStorm datastore / secrets
+    in real deployments; this key exists for pack config parity.
+  type: string
+  secret: true
+  required: false

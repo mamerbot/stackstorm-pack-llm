@@ -1,0 +1,14 @@
+---
+name: tasks_from_plan
+pack: llm_plan_task
+runner_type: python-script
+enabled: true
+entry_point: tasks_from_plan.py
+description: >
+  Convert a normalized plan (goal + steps with ids and depends_on) into a list
+  of pending tasks suitable for downstream automation.
+parameters:
+  plan:
+    type: object
+    description: Plan object matching the llm_plan_task schema.
+    required: true

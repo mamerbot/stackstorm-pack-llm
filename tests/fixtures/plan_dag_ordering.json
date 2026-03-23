@@ -1,0 +1,20 @@
+{
+  "version": "1",
+  "goal": "Fixture with depends_on DAG (ordering semantics for execution_order)",
+  "assumptions": [],
+  "risks": [],
+  "steps": [
+    {
+      "id": "c",
+      "title": "Step C depends on A",
+      "description": "Listed before A in the step array to exercise topological order vs list order.",
+      "depends_on": ["a"]
+    },
+    {
+      "id": "a",
+      "title": "Root step A",
+      "description": "",
+      "depends_on": []
+    }
+  ]
+}

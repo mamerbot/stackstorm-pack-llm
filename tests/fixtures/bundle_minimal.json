@@ -1,0 +1,30 @@
+{
+  "plan": {
+    "version": "1",
+    "goal": "Minimal valid plan fixture",
+    "steps": [
+      {
+        "id": "only",
+        "title": "Single step",
+        "description": "",
+        "depends_on": []
+      }
+    ],
+    "assumptions": [],
+    "risks": []
+  },
+  "tasks": [
+    {
+      "id": "task-only",
+      "step_id": "only",
+      "title": "Single step",
+      "description": "",
+      "depends_on": [],
+      "status": "pending"
+    }
+  ],
+  "execution_order": [
+    "task-only"
+  ],
+  "run_id": "fb8d3122-a8a7-4f46-b54a-70bf22e38e77"
+}

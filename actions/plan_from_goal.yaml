@@ -1,0 +1,25 @@
+---
+name: plan_from_goal
+pack: llm_plan_task
+runner_type: python-script
+enabled: true
+entry_point: plan_from_goal.py
+description: >
+  Produce a normalized plan object. If structured_plan_json is provided, it is
+  parsed/validated (expected shape: goal, steps[]). Otherwise a deterministic
+  template plan is returned for wiring and testing.
+parameters:
+  goal:
+    type: string
+    description: Natural-language objective driving the plan.
+    required: true
+  structured_plan_json:
+    type: string
+    description: >
+      Optional JSON (or fenced ```json) from an external LLM describing the plan.
+    required: false
+  override_goal:
+    type: boolean
+    description: When true, replace plan.goal with the goal parameter.
+    required: false
+    default: true

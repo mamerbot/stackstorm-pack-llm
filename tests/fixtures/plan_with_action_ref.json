@@ -1,0 +1,15 @@
+{
+  "version": "1",
+  "goal": "Fixture with optional action_ref",
+  "assumptions": ["core.local is registered in StackStorm"],
+  "risks": [],
+  "steps": [
+    {
+      "id": "echo",
+      "title": "Echo via core.local",
+      "description": "Runs a local shell command through StackStorm.",
+      "depends_on": [],
+      "action_ref": "core.local"
+    }
+  ]
+}

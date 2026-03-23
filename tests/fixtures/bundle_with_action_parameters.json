@@ -1,0 +1,44 @@
+{
+  "plan": {
+    "version": "1",
+    "goal": "Fixture with action_ref and action_parameters",
+    "steps": [
+      {
+        "id": "run",
+        "title": "Run command with parameters",
+        "description": "",
+        "depends_on": [],
+        "action_ref": "core.local",
+        "action_parameters": {
+          "cmd": "echo ok",
+          "nested": {
+            "x": 1
+          }
+        }
+      }
+    ],
+    "assumptions": [],
+    "risks": []
+  },
+  "tasks": [
+    {
+      "id": "task-run",
+      "step_id": "run",
+      "title": "Run command with parameters",
+      "description": "",
+      "depends_on": [],
+      "status": "pending",
+      "action_ref": "core.local",
+      "action_parameters": {
+        "cmd": "echo ok",
+        "nested": {
+          "x": 1
+        }
+      }
+    }
+  ],
+  "execution_order": [
+    "task-run"
+  ],
+  "run_id": "2f79142f-cfdb-4c41-ba97-d4459809d050"
+}

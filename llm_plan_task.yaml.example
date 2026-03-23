@@ -1,0 +1,4 @@
+---
+llm_chat_completions_url: "https://api.openai.com/v1/chat/completions"
+llm_model: "gpt-4o-mini"
+api_token: "replace-me"

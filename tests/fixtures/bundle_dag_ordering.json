@@ -1,0 +1,49 @@
+{
+  "plan": {
+    "version": "1",
+    "goal": "Fixture with depends_on DAG (ordering semantics for execution_order)",
+    "steps": [
+      {
+        "id": "c",
+        "title": "Step C depends on A",
+        "description": "Listed before A in the step array to exercise topological order vs list order.",
+        "depends_on": [
+          "a"
+        ]
+      },
+      {
+        "id": "a",
+        "title": "Root step A",
+        "description": "",
+        "depends_on": []
+      }
+    ],
+    "assumptions": [],
+    "risks": []
+  },
+  "tasks": [
+    {
+      "id": "task-c",
+      "step_id": "c",
+      "title": "Step C depends on A",
+      "description": "Listed before A in the step array to exercise topological order vs list order.",
+      "depends_on": [
+        "task-a"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "task-a",
+      "step_id": "a",
+      "title": "Root step A",
+      "description": "",
+      "depends_on": [],
+      "status": "pending"
+    }
+  ],
+  "execution_order": [
+    "task-a",
+    "task-c"
+  ],
+  "run_id": "2f2903ca-604a-494a-a037-bf41d6816cdb"
+}

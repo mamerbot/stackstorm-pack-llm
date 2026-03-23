@@ -1,0 +1,14 @@
+---
+name: normalize_plan_from_llm
+pack: llm_plan_task
+runner_type: python-script
+enabled: true
+entry_point: normalize_plan_from_llm.py
+description: >
+  Parse and validate JSON returned by an LLM (including optional markdown code
+  fences) into a normalized plan object.
+parameters:
+  plan_json_str:
+    type: string
+    description: Raw model output containing a JSON plan.
+    required: true

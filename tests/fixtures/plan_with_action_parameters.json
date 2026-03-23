@@ -1,0 +1,19 @@
+{
+  "version": "1",
+  "goal": "Fixture with action_ref and action_parameters",
+  "assumptions": [],
+  "risks": [],
+  "steps": [
+    {
+      "id": "run",
+      "title": "Run command with parameters",
+      "description": "",
+      "depends_on": [],
+      "action_ref": "core.local",
+      "action_parameters": {
+        "cmd": "echo ok",
+        "nested": { "x": 1 }
+      }
+    }
+  ]
+}

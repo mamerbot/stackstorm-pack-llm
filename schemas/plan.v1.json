@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "llm_plan_task/plan.v1.json",
+  "title": "llm_plan_task plan document (v1)",
+  "description": "Structural contract for plans accepted by validate_plan in actions/lib/plan_model.py. Size limits (max steps, string lengths, action_parameters depth/size) are enforced in code only; see README and plan_model module constants.",
+  "type": "object",
+  "required": ["goal", "steps"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Format version; if omitted, validate_plan treats the plan as version \"1\"."
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/step" }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "required": ["title"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Optional; missing or blank ids are assigned step-N by validate_plan."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional; omit or use empty string. null is rejected by validate_plan."
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "action_ref": {
+          "type": "string",
+          "description": "Optional StackStorm action reference pack.action (non-empty tokens, ASCII letters/digits/underscore). Leading/trailing whitespace is stripped by validate_plan; whitespace-only is treated as absent.",
+          "pattern": "^\\s*(?:|[a-zA-Z0-9_]+\\.[a-zA-Z0-9_]+)\\s*$"
+        },
+        "action_parameters": {
+          "type": "object",
+          "description": "JSON object only; requires non-empty action_ref in validate_plan. Nesting depth, key counts, and serialized size are capped in code."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["action_parameters"]
+          },
+          "then": {
+            "required": ["action_ref"],
+            "properties": {
+              "action_ref": {
+                "type": "string",
+                "pattern": "^\\s*[a-zA-Z0-9_]+\\.[a-zA-Z0-9_]+\\s*$"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

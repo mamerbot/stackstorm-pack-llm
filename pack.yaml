@@ -1,0 +1,20 @@
+---
+ref: llm_plan_task
+name: LLM Plan and Task
+description: >
+  StackStorm actions and workflows for turning natural-language goals into
+  structured plans and executable task lists. Designed to pair with an
+  external LLM (you supply JSON) or to run in a deterministic "template" mode
+  for testing and wiring.
+version: 0.1.0
+author: Emergent / Paperclip
+email: opensource@example.com
+keywords:
+  - llm
+  - planning
+  - tasks
+  - orchestration
+python_versions:
+  - "3"
+dependencies:
+  - core

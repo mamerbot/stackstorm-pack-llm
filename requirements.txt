@@ -1,0 +1,5 @@
+# Pin deps when this pack calls third-party libraries from actions.
+# requests is used by llm_chat_complete (optional integration path).
+# jsonschema validates plan JSON against schemas/plan.v1.json (Draft 2020-12) at runtime.
+requests>=2.31.0,<3
+jsonschema>=4.19.0,<5

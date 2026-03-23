@@ -1,0 +1,56 @@
+# Orquesta (StackStorm): success path is unchanged. When pack actions return
+# (False, message) the task enters failed(); matching branches publish
+# failure_stage, failure_message, and failure_raw, then core.fail runs so the
+# workflow execution is visibly failed while ctx/output still expose the fields
+# below for operators and downstream automation.
+version: 1.0
+description: >
+  End-to-end path from a goal (and optional LLM JSON plan) to a normalized task
+  bundle for downstream StackStorm automation.
+input:
+  - goal
+  - structured_plan_json: null
+  - override_goal: true
+output:
+  # Only set after derive_tasks succeeds; avoid Yaql undefined when workflow fails mid-flight.
+  - bundle: <% ctx().get("bundle", null) %>
+  - failure_stage: <% ctx().get("failure_stage", null) %>
+  - failure_message: <% ctx().get("failure_message", null) %>
+  - failure_raw: <% ctx().get("failure_raw", null) %>
+tasks:
+  plan:
+    action: llm_plan_task.plan_from_goal
+    input:
+      goal: <% ctx().goal %>
+      structured_plan_json: <% ctx(structured_plan_json) %>
+      override_goal: <% ctx(override_goal) %>
+    next:
+      - when: <% succeeded() %>
+        publish:
+          # Python runner exposes the action return value under result().result
+          - plan: <% result().result %>
+        do: derive_tasks
+      - when: <% failed() %>
+        publish:
+          - failure_stage: plan
+          - failure_message: <% result().result %>
+          - failure_raw: <% result() %>
+        do: finalize_failure
+  derive_tasks:
+    action: llm_plan_task.tasks_from_plan
+    input:
+      plan: <% ctx(plan) %>
+    next:
+      - when: <% succeeded() %>
+        publish:
+          - bundle: <% result() %>
+      - when: <% failed() %>
+        publish:
+          - failure_stage: derive_tasks
+          - failure_message: <% result().result %>
+          - failure_raw: <% result() %>
+        do: finalize_failure
+  finalize_failure:
+    action: core.fail
+    input:
+      message: <% ctx(failure_message) %>

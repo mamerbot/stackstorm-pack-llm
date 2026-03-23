@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "llm_plan_task/task_bundle.v1.json",
+  "title": "llm_plan_task task bundle (v1)",
+  "description": "Structural contract for the success output of tasks_from_plan / plan_to_tasks (fields: plan, tasks, execution_order, run_id). The embedded plan MUST also validate against schemas/plan.v1.json; validate_task_bundle() in actions/lib/plan_model.py applies this schema, validate_plan(plan), and Python-only checks (task rows align with plan steps, execution_order matches the Kahn topological order used in code, run_id shape).",
+  "type": "object",
+  "required": ["plan", "tasks", "execution_order", "run_id"],
+  "properties": {
+    "plan": {
+      "type": "object",
+      "description": "Normalized plan from validate_plan; MUST satisfy sibling schemas/plan.v1.json. Not re-embedded here to avoid duplicating plan step rules; consumers should validate the plan with plan.v1 or call validate_task_bundle()."
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/expanded_task" }
+    },
+    "execution_order": {
+      "type": "array",
+      "description": "Task ids in dependency-safe topological order (see README / EMT-70). Must be a permutation of tasks[].id; order invariants are enforced in Python.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID string from plan_to_tasks (uuid.uuid4); pattern is not enforced in schema alone."
+    }
+  },
+  "$defs": {
+    "expanded_task": {
+      "type": "object",
+      "required": ["id", "step_id", "title", "description", "depends_on", "status"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable task id: task-<step_id> after plan_to_tasks."
+        },
+        "step_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Source plan step id."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "May be empty string after normalization."
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Task ids of prerequisites (task-<step_id> form)."
+        },
+        "status": {
+          "type": "string",
+          "const": "pending",
+          "description": "tasks_from_plan / plan_to_tasks emit pending tasks only on success."
+        },
+        "action_ref": {
+          "type": "string",
+          "description": "Optional StackStorm action reference; omitted when the step has none.",
+          "pattern": "^[a-zA-Z0-9_]+\\.[a-zA-Z0-9_]+$"
+        },
+        "action_parameters": {
+          "type": "object",
+          "description": "JSON object only; requires non-empty action_ref in validate_task_bundle Python checks."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["action_parameters"]
+          },
+          "then": {
+            "required": ["action_ref"]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+---
+name: plan_to_tasks
+pack: llm_plan_task
+description: Turn a goal into a plan-backed task list (ChatOps)
+action_ref: llm_plan_task.plan_to_tasks
+formats:
+  - "llm plan tasks {{goal}}"

@@ -1,0 +1,23 @@
+---
+name: plan_to_tasks
+pack: llm_plan_task
+runner_type: orquesta
+enabled: true
+entry_point: workflows/plan_to_tasks.yaml
+description: >
+  Orquesta workflow that builds a plan (template or LLM JSON) and converts it
+  into a pending task list with stable ids.
+parameters:
+  goal:
+    type: string
+    description: Natural-language objective.
+    required: true
+  structured_plan_json:
+    type: string
+    description: Optional JSON plan string from an external LLM.
+    required: false
+  override_goal:
+    type: boolean
+    description: Replace plan.goal with the goal parameter when structured JSON is used.
+    required: false
+    default: true

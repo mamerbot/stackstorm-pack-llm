@@ -1,0 +1,14 @@
+{
+  "version": "1",
+  "goal": "Minimal valid plan fixture",
+  "assumptions": [],
+  "risks": [],
+  "steps": [
+    {
+      "id": "only",
+      "title": "Single step",
+      "description": "",
+      "depends_on": []
+    }
+  ]
+}
