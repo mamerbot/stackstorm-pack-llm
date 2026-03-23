@@ -85,8 +85,9 @@ jobs:
 
       - name: Layout pack as llm_plan_task for ST2_PACKS_DEV
         run: |
-          mkdir -p "${RUNNER_TEMP}/st2-packs-dev"
-          ln -s "${GITHUB_WORKSPACE}" "${RUNNER_TEMP}/st2-packs-dev/llm_plan_task"
+          mkdir -p "${RUNNER_TEMP}/st2-packs-dev/llm_plan_task"
+          # Copy (do not symlink): container mounts must not rely on host-only paths.
+          rsync -a --delete --exclude='.git' "${GITHUB_WORKSPACE}/" "${RUNNER_TEMP}/st2-packs-dev/llm_plan_task/"
 
       - name: Clone StackStorm st2-docker
         run: |

@@ -11,15 +11,15 @@ Paperclip's ``opencode_local`` adapter (see ``parseOpenCodeJsonl`` in
 Invocation (tested with OpenCode CLI 1.2.x):
 
 - Binary: resolved from ``OPENCODE_COMMAND``, then ``LLM_PLAN_TASK_OPENCODE_BIN``, else
-  ``opencode`` on ``PATH``. Use an absolute path on StackStorm runners when ``PATH`` is
-  minimal (same pattern as ``PAPERCLIP_OPENCODE_COMMAND`` in Paperclip deployments).
+    ``opencode`` on ``PATH``. Use an absolute path on StackStorm runners when ``PATH`` is
+    minimal (same pattern as ``PAPERCLIP_OPENCODE_COMMAND`` in Paperclip deployments).
 - Child argv: ``<binary> run --format json --model <model>`` with the combined prompt
-  (system + user) as **stdin**, mirroring ``opencode_local`` execute wiring.
+    (system + user) as **stdin**, mirroring ``opencode_local`` execute wiring.
 - Model: required JSON field ``model`` from the pack; if empty, ``LLM_PLAN_TASK_OPENCODE_MODEL``
-  (default ``opencode/gpt-5-nano``) is used.
+    (default ``opencode/gpt-5-nano``) is used.
 - ``temperature`` from the stdin JSON protocol is **not** forwarded: ``opencode run`` has
-  no stable temperature flag in the tested CLI; adjust provider defaults or wrap with
-  a custom argv if your org needs it.
+    no stable temperature flag in the tested CLI; adjust provider defaults or wrap with
+    a custom argv if your org needs it.
 
 Upstream CLI reference: https://opencode.ai/docs — use ``opencode run --help`` on the
 runner to confirm flags for your installed version.
