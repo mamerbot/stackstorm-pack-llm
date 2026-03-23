@@ -110,11 +110,304 @@ Copy `llm_plan_task.yaml.example` to `/opt/stackstorm/configs/llm_plan_task.yaml
 sudo st2ctl reload --register-configs
 ```
 
-## Try it
+## Usage examples
+
+Successful **python-script** actions return `(True, payload)`; in API/CLI output the payload is typically nested as **`result.result`** (see `st2 execution get <id> -j`). The JSON below matches that payload shape. Values such as **`run_id`** are UUIDs and differ on each run unless noted.
+
+### `plan_from_goal` (template mode)
+
+No `structured_plan_json` → deterministic template plan for wiring and tests.
 
 ```bash
 st2 run llm_plan_task.plan_from_goal goal="Roll out monitoring"
+```
+
+**Example result** (`result.result`):
+
+```json
+{
+  "version": "1",
+  "goal": "Roll out monitoring",
+  "assumptions": [
+    "Template mode: replace this plan with model output by passing structured_plan_json."
+  ],
+  "risks": [],
+  "steps": [
+    {
+      "id": "clarify",
+      "title": "Clarify requirements and success criteria",
+      "description": "Confirm scope, constraints, and acceptance checks for: Roll out monitoring",
+      "depends_on": []
+    },
+    {
+      "id": "design",
+      "title": "Design approach",
+      "description": "Outline an implementation or operational approach.",
+      "depends_on": ["clarify"]
+    },
+    {
+      "id": "execute",
+      "title": "Execute primary work",
+      "description": "Carry out the planned steps with traceable outputs.",
+      "depends_on": ["design"]
+    },
+    {
+      "id": "verify",
+      "title": "Verify and document",
+      "description": "Validate results and capture what changed for operators.",
+      "depends_on": ["execute"]
+    }
+  ]
+}
+```
+
+### `plan_from_goal` (with `structured_plan_json`)
+
+Pass validated plan JSON from an LLM or file. With default `override_goal=true`, the CLI `goal=` replaces `plan.goal` after validation.
+
+```bash
+st2 run llm_plan_task.plan_from_goal \
+  goal="Roll out monitoring with LLM JSON" \
+  structured_plan_json='{"version":"1","goal":"From JSON only","assumptions":[],"risks":[],"steps":[{"id":"a","title":"A","description":"d","depends_on":[]},{"id":"b","title":"B","description":"d2","depends_on":["a"]}]}'
+```
+
+**Example result** (`result.result`):
+
+```json
+{
+  "version": "1",
+  "goal": "Roll out monitoring with LLM JSON",
+  "steps": [
+    {
+      "id": "a",
+      "title": "A",
+      "description": "d",
+      "depends_on": []
+    },
+    {
+      "id": "b",
+      "title": "B",
+      "description": "d2",
+      "depends_on": ["a"]
+    }
+  ],
+  "assumptions": [],
+  "risks": []
+}
+```
+
+### `normalize_plan_from_llm`
+
+Accepts raw model text: optional **` ```json `** … **` ``` `** fences are stripped when the trimmed string starts with a fence; otherwise the whole string must be JSON.
+
+**Example (markdown fences):**
+
+```bash
+st2 run llm_plan_task.normalize_plan_from_llm plan_json_str='```json
+{
+  "version": "1",
+  "goal": "Ship patch release",
+  "assumptions": [],
+  "risks": [],
+  "steps": [
+    {"id": "prep", "title": "Prepare change", "description": "", "depends_on": []},
+    {"id": "ship", "title": "Ship", "description": "", "depends_on": ["prep"]}
+  ]
+}
+```'
+```
+
+**Example result** (`result.result`):
+
+```json
+{
+  "version": "1",
+  "goal": "Ship patch release",
+  "assumptions": [],
+  "risks": [],
+  "steps": [
+    {
+      "id": "prep",
+      "title": "Prepare change",
+      "description": "",
+      "depends_on": []
+    },
+    {
+      "id": "ship",
+      "title": "Ship",
+      "description": "",
+      "depends_on": ["prep"]
+    }
+  ]
+}
+```
+
+### `tasks_from_plan`
+
+`plan` is a JSON object (same schema as `plan_from_goal` output).
+
+```bash
+st2 run llm_plan_task.tasks_from_plan \
+  plan='{"version":"1","goal":"One-step demo","assumptions":[],"risks":[],"steps":[{"id":"only","title":"Single step","description":"","depends_on":[]}]}'
+```
+
+**Example result** (`result.result`). The `run_id` is a new UUID each execution; the value below is illustrative.
+
+```json
+{
+  "plan": {
+    "version": "1",
+    "goal": "One-step demo",
+    "steps": [
+      {
+        "id": "only",
+        "title": "Single step",
+        "description": "",
+        "depends_on": []
+      }
+    ],
+    "assumptions": [],
+    "risks": []
+  },
+  "tasks": [
+    {
+      "id": "task-only",
+      "step_id": "only",
+      "title": "Single step",
+      "description": "",
+      "depends_on": [],
+      "status": "pending"
+    }
+  ],
+  "execution_order": ["task-only"],
+  "run_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+}
+```
+
+### `llm_chat_complete`
+
+Requires pack config: `llm_chat_completions_url` (and optional `api_token`, `llm_model`). See `llm_plan_task.yaml.example`.
+
+```bash
+st2 run llm_plan_task.llm_chat_complete \
+  user_prompt="Reply with one word: OK" \
+  system_prompt="You are a terse assistant."
+```
+
+**Example result** (`result.result`) — **illustrative**; provider JSON varies.
+
+```json
+{
+  "raw": {
+    "id": "chatcmpl-example",
+    "object": "chat.completion",
+    "created": 1710000000,
+    "model": "gpt-4o-mini",
+    "choices": [
+      {
+        "index": 0,
+        "finish_reason": "stop",
+        "message": { "role": "assistant", "content": "OK" }
+      }
+    ]
+  },
+  "content": "OK"
+}
+```
+
+### `plan_to_tasks` (Orquesta workflow)
+
+Runs `plan_from_goal` → `tasks_from_plan` and publishes **`bundle`** plus failure fields on errors (see the **`plan_to_tasks` workflow — failure context** section above).
+
+```bash
 st2 run llm_plan_task.plan_to_tasks goal="Roll out monitoring"
+```
+
+**Example workflow output** (logical shape: published `bundle` matches `tasks_from_plan`; `failure_*` are null on success). `bundle.run_id` is a new UUID each run; shown value is illustrative.
+
+```json
+{
+  "bundle": {
+    "plan": {
+      "version": "1",
+      "goal": "Roll out monitoring",
+      "assumptions": [
+        "Template mode: replace this plan with model output by passing structured_plan_json."
+      ],
+      "risks": [],
+      "steps": [
+        {
+          "id": "clarify",
+          "title": "Clarify requirements and success criteria",
+          "description": "Confirm scope, constraints, and acceptance checks for: Roll out monitoring",
+          "depends_on": []
+        },
+        {
+          "id": "design",
+          "title": "Design approach",
+          "description": "Outline an implementation or operational approach.",
+          "depends_on": ["clarify"]
+        },
+        {
+          "id": "execute",
+          "title": "Execute primary work",
+          "description": "Carry out the planned steps with traceable outputs.",
+          "depends_on": ["design"]
+        },
+        {
+          "id": "verify",
+          "title": "Verify and document",
+          "description": "Validate results and capture what changed for operators.",
+          "depends_on": ["execute"]
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "task-clarify",
+        "step_id": "clarify",
+        "title": "Clarify requirements and success criteria",
+        "description": "Confirm scope, constraints, and acceptance checks for: Roll out monitoring",
+        "depends_on": [],
+        "status": "pending"
+      },
+      {
+        "id": "task-design",
+        "step_id": "design",
+        "title": "Design approach",
+        "description": "Outline an implementation or operational approach.",
+        "depends_on": ["task-clarify"],
+        "status": "pending"
+      },
+      {
+        "id": "task-execute",
+        "step_id": "execute",
+        "title": "Execute primary work",
+        "description": "Carry out the planned steps with traceable outputs.",
+        "depends_on": ["task-design"],
+        "status": "pending"
+      },
+      {
+        "id": "task-verify",
+        "step_id": "verify",
+        "title": "Verify and document",
+        "description": "Validate results and capture what changed for operators.",
+        "depends_on": ["task-execute"],
+        "status": "pending"
+      }
+    ],
+    "execution_order": [
+      "task-clarify",
+      "task-design",
+      "task-execute",
+      "task-verify"
+    ],
+    "run_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+  },
+  "failure_stage": null,
+  "failure_message": null,
+  "failure_raw": null
+}
 ```
 
 ## Tests (without StackStorm)

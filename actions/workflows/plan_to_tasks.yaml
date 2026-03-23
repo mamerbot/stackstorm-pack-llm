@@ -43,7 +43,8 @@ tasks:
     next:
       - when: <% succeeded() %>
         publish:
-          - bundle: <% result() %>
+          # Match plan task: python runner returns the action payload on result().result
+          - bundle: <% result().result %>
       - when: <% failed() %>
         publish:
           - failure_stage: derive_tasks
