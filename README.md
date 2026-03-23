@@ -432,7 +432,7 @@ st2 run llm_plan_task.plan_to_tasks goal="Roll out monitoring"
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
-pip install -r requirements-tests.txt
+pip install -r tests-requirements.txt
 pytest -q
 ```
 
@@ -440,7 +440,7 @@ pytest -q
 
 ```bash
 uv venv && . .venv/bin/activate
-uv pip install -r requirements-tests.txt
+uv pip install -r tests-requirements.txt
 uv run pytest -q
 ```
 
