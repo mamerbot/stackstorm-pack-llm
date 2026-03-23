@@ -79,11 +79,31 @@ def _cleanup_sys_modules():
 def test_plan_from_goal_template_mode():
     mod = _load_action_module("plan_from_goal")
     act = mod.PlanFromGoal()
-    ok, plan = act.run(goal="Roll out monitoring")
+    pm = importlib.import_module("lib.plan_model")
+    goal = "Roll out monitoring"
+    ok, plan = act.run(goal=goal)
     assert ok is True
-    assert plan["goal"] == "Roll out monitoring"
-    assert plan["version"] == "1"
-    assert plan["steps"]
+    expected = pm.validate_plan(pm.template_plan_from_goal(goal))
+    assert plan == expected
+    assert set(plan.keys()) == {"version", "goal", "steps", "assumptions", "risks"}
+    for step in plan["steps"]:
+        assert set(step.keys()) <= {
+            "id",
+            "title",
+            "description",
+            "depends_on",
+            "action_ref",
+            "action_parameters",
+        }
+
+
+def test_plan_from_goal_template_mode_rejects_oversized_goal():
+    mod = _load_action_module("plan_from_goal")
+    act = mod.PlanFromGoal()
+    long_goal = "x" * 4097
+    ok, err = act.run(goal=long_goal)
+    assert ok is False
+    assert "plan.goal" in err
 
 
 def test_plan_from_goal_with_structured_json():

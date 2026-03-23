@@ -31,4 +31,8 @@ class PlanFromGoal(Action):
             if override_goal:
                 plan = merge_plan_with_goal(plan, g)
             return True, plan
-        return True, template_plan_from_goal(g)
+        try:
+            plan = validate_plan(template_plan_from_goal(g))
+        except PlanValidationError as exc:
+            return False, str(exc)
+        return True, plan
