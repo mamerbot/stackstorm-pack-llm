@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import json
 import sys
@@ -114,6 +115,7 @@ def test_tasks_from_plan():
     assert "tasks" in bundle and isinstance(bundle["tasks"], list)
     assert bundle["tasks"][0]["id"]
     assert bundle.get("execution_order") == [t["id"] for t in bundle["tasks"]]
+    importlib.import_module("lib.plan_model").validate_task_bundle(bundle)
 
 
 def test_tasks_from_plan_includes_action_ref():
@@ -223,6 +225,29 @@ def test_tasks_from_plan_rejects_cyclic_depends_on():
     assert ok is False
     assert "cyclic depends_on" in err
     assert "a" in err and "b" in err
+
+
+def test_tasks_from_plan_maps_task_bundle_validation_error():
+    mod_tasks = _load_action_module("tasks_from_plan")
+    pm = importlib.import_module("lib.plan_model")
+    act_t = mod_tasks.TasksFromPlan()
+    plan = {
+        "version": "1",
+        "goal": "g",
+        "assumptions": [],
+        "risks": [],
+        "steps": [
+            {"id": "a", "title": "A", "description": "", "depends_on": []},
+        ],
+    }
+    with mock.patch.object(
+        mod_tasks,
+        "validate_task_bundle",
+        side_effect=pm.TaskBundleValidationError("bundle check failed"),
+    ):
+        ok, err = act_t.run(plan=plan)
+    assert ok is False
+    assert err == "bundle check failed"
 
 
 def test_normalize_plan_from_llm():
