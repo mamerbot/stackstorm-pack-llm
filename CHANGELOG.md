@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `llm_access_mode` `agent_cli` for `llm_chat_complete`: coding-agent / ACP-style access via
+  `agent_cli_profile` `stdin_json_bridge` | `claude_code` | `custom`, optional `contrib/agent_cli`
+  bridge notes, and subprocess-based execution (no HTTP API key in the pack for that path).
 - `llm_chat_complete` multi-provider support: `llm_provider` `openai` | `anthropic` | `cursor`,
   credential fallbacks `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `CURSOR_API_KEY`, Anthropic Messages
   API wiring, optional `cursor_api_basic_auth` and `llm_max_tokens`.

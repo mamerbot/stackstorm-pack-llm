@@ -10,6 +10,7 @@ import json
 import sys
 import types
 from pathlib import Path
+from subprocess import CompletedProcess
 from unittest import mock
 
 import pytest
@@ -332,6 +333,100 @@ def test_llm_chat_complete_invalid_provider():
     ok, err = act.run(user_prompt="hi")
     assert ok is False
     assert "llm_provider" in err
+
+
+def test_llm_chat_complete_invalid_access_mode():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(config={"llm_access_mode": "grpc"})
+    ok, err = act.run(user_prompt="hi")
+    assert ok is False
+    assert "llm_access_mode" in err
+
+
+def test_llm_chat_complete_agent_cli_requires_profile():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(config={"llm_access_mode": "agent_cli"})
+    ok, err = act.run(user_prompt="hi")
+    assert ok is False
+    assert "agent_cli_profile" in err
+
+
+def test_llm_chat_complete_agent_cli_stdin_json_bridge():
+    mod = _load_action_module("llm_chat_complete")
+    ac = sys.modules["lib.agent_cli"]
+    act = mod.LlmChatComplete(
+        config={
+            "llm_access_mode": "agent_cli",
+            "agent_cli_profile": "stdin_json_bridge",
+            "agent_cli_executable": "/opt/stackstorm/scripts/bridge.sh",
+        }
+    )
+    with mock.patch.object(ac.subprocess, "run") as run:
+        run.return_value = CompletedProcess(
+            ["/opt/stackstorm/scripts/bridge.sh"],
+            0,
+            stdout=b'{"content":"from-bridge"}',
+            stderr=b"",
+        )
+        ok, body = act.run(user_prompt="hi", system_prompt="sys")
+    assert ok is True
+    assert body["content"] == "from-bridge"
+    assert body["raw"]["content"] == "from-bridge"
+    call_kw = run.call_args.kwargs
+    assert call_kw["input"].decode("utf-8").startswith('{"version": "1"')
+    assert '"user_prompt": "hi"' in call_kw["input"].decode("utf-8")
+
+
+def test_llm_chat_complete_agent_cli_claude_code_json():
+    mod = _load_action_module("llm_chat_complete")
+    ac = sys.modules["lib.agent_cli"]
+    act = mod.LlmChatComplete(
+        config={
+            "llm_access_mode": "agent_cli",
+            "agent_cli_profile": "claude_code",
+            "agent_cli_binary": "claude",
+        }
+    )
+    payload = json.dumps(
+        {"type": "result", "subtype": "success", "result": "hello-claude"}
+    ).encode("utf-8")
+    with mock.patch.object(ac.subprocess, "run") as run:
+        run.return_value = CompletedProcess(
+            ["claude", "-p", "u", "--output-format", "json", "--bare"],
+            0,
+            stdout=payload,
+            stderr=b"",
+        )
+        ok, body = act.run(user_prompt="u")
+    assert ok is True
+    assert body["content"] == "hello-claude"
+    argv = run.call_args[0][0]
+    assert argv[0] == "claude"
+    assert argv[1] == "-p"
+    assert argv[2] == "u"
+
+
+def test_llm_chat_complete_agent_cli_custom_raw_stdout():
+    mod = _load_action_module("llm_chat_complete")
+    ac = sys.modules["lib.agent_cli"]
+    act = mod.LlmChatComplete(
+        config={
+            "llm_access_mode": "agent_cli",
+            "agent_cli_profile": "custom",
+            "agent_cli_stdout_kind": "raw_text",
+            "agent_cli_argv_json": '["/bin/echo", "{user_prompt}"]',
+        }
+    )
+    with mock.patch.object(ac.subprocess, "run") as run:
+        run.return_value = CompletedProcess(
+            ["/bin/echo", "ping"],
+            0,
+            stdout=b"ping\n",
+            stderr=b"",
+        )
+        ok, body = act.run(user_prompt="ping")
+    assert ok is True
+    assert body["content"] == "ping"
 
 
 def test_llm_chat_complete_happy_path():

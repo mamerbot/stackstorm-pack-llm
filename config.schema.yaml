@@ -1,4 +1,64 @@
 ---
+llm_access_mode:
+  description: >
+    How llm_chat_complete reaches a model. http uses provider HTTP APIs and
+    api_token / OPENAI_API_KEY / ANTHROPIC_API_KEY / CURSOR_API_KEY. agent_cli
+    spawns a coding-agent CLI or operator wrapper on the StackStorm runner so
+    auth stays with the agent install (OAuth/session) instead of pack secrets.
+  type: string
+  required: false
+  enum:
+    - http
+    - agent_cli
+  default: http
+agent_cli_profile:
+  description: >
+    Required when llm_access_mode=agent_cli. stdin_json_bridge runs
+    agent_cli_executable with JSON stdin (see pack README). claude_code runs
+    agent_cli_binary (default claude) in headless print mode with JSON stdout.
+    custom uses agent_cli_argv_json argv templates with placeholders
+    {combined_prompt}, {user_prompt}, {system_prompt}, {model}, {temperature}.
+  type: string
+  required: false
+  enum:
+    - stdin_json_bridge
+    - claude_code
+    - custom
+agent_cli_executable:
+  description: >
+    Path or name on PATH for stdin_json_bridge (reads JSON stdin, prints JSON
+    with a string "content" field on stdout).
+  type: string
+  required: false
+agent_cli_binary:
+  description: >
+    Executable for claude_code profile (default claude). Must be logged in on
+    the runner or use the same environment as an interactive Claude Code session.
+  type: string
+  required: false
+agent_cli_working_directory:
+  description: Optional working directory for the agent CLI subprocess.
+  type: string
+  required: false
+agent_cli_argv_json:
+  description: >
+    JSON array of argv strings for agent_cli_profile=custom. Placeholders
+    {combined_prompt}, {user_prompt}, {system_prompt}, {model}, {temperature}
+    are substituted per argument (no shell).
+  type: string
+  required: false
+agent_cli_stdout_kind:
+  description: >
+    How to parse agent CLI stdout for custom profile (defaults: json_content
+    for stdin_json_bridge, claude_code_result for claude_code, raw_text for
+    custom). json_content expects {"content":"..."}. claude_code_result expects
+    Claude Code --output-format=json shape with a string "result" field.
+  type: string
+  required: false
+  enum:
+    - json_content
+    - claude_code_result
+    - raw_text
 llm_provider:
   description: >
     Which upstream API to call. openai and cursor use OpenAI-compatible

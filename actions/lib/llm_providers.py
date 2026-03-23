@@ -14,6 +14,8 @@ DEFAULT_ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 
 _PROVIDERS = frozenset({"openai", "anthropic", "cursor"})
 
+_ACCESS_MODES = frozenset({"http", "agent_cli"})
+
 _DEFAULT_MODEL = {
     "openai": "gpt-4o-mini",
     "anthropic": "claude-3-5-sonnet-20241022",
@@ -25,6 +27,16 @@ _ENV_KEY = {
     "anthropic": "ANTHROPIC_API_KEY",
     "cursor": "CURSOR_API_KEY",
 }
+
+
+def coerce_access_mode(raw: Any) -> tuple[bool, str]:
+    """Return (True, mode) or (False, error_message). Default http."""
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return True, "http"
+    s = str(raw).strip().lower()
+    if s not in _ACCESS_MODES:
+        return False, "llm_access_mode must be one of: http, agent_cli"
+    return True, s
 
 
 def coerce_provider(raw: Any) -> tuple[bool, str]:

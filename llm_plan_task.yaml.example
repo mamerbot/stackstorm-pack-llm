@@ -1,5 +1,8 @@
 ---
-# llm_provider: openai   # default; or anthropic | cursor
+# llm_access_mode: http   # default — direct HTTP to provider APIs
+# llm_access_mode: agent_cli   # delegate to a coding-agent CLI / wrapper (no pack API key)
+
+# llm_provider: openai   # default; or anthropic | cursor (used for defaults and http path)
 llm_chat_completions_url: "https://api.openai.com/v1/chat/completions"
 llm_model: "gpt-4o-mini"
 # api_token: "replace-me"   # optional if OPENAI_API_KEY / ANTHROPIC_API_KEY / CURSOR_API_KEY is set
@@ -15,3 +18,22 @@ llm_model: "gpt-4o-mini"
 # llm_chat_completions_url: "https://your-gateway.example/v1/chat/completions"
 # llm_model: "gpt-4o-mini"
 # cursor_api_basic_auth: false
+
+# --- Agent / ACP-style access (llm_access_mode: agent_cli) ---
+#
+# 1) Claude Code headless on the runner (uses claude session/auth, not pack keys):
+# llm_access_mode: agent_cli
+# agent_cli_profile: claude_code
+# agent_cli_binary: claude
+#
+# 2) Generic bridge: executable reads one JSON line from stdin, prints JSON {"content":"..."}:
+# llm_access_mode: agent_cli
+# agent_cli_profile: stdin_json_bridge
+# agent_cli_executable: /opt/stackstorm/scripts/llm_agent_bridge.sh
+#
+# 3) Custom argv (e.g. Codex / Cursor / OpenCode — flags vary by version; use a wrapper script
+#    or pin argv here). Example shape only:
+# llm_access_mode: agent_cli
+# agent_cli_profile: custom
+# agent_cli_stdout_kind: raw_text
+# agent_cli_argv_json: '["/usr/local/bin/my-llm-wrapper", "{combined_prompt}"]'

@@ -5,9 +5,11 @@ import json
 
 import requests
 
+from lib.agent_cli import run_agent_cli
 from lib.llm_providers import (
     anthropic_max_tokens,
     build_auth_headers,
+    coerce_access_mode,
     coerce_provider,
     default_model_for,
     resolve_api_token,
@@ -22,10 +24,33 @@ class LlmChatComplete(Action):
             return False, "user_prompt must be a non-empty string"
 
         cfg = self.config or {}
+        ok_m, mode_or_err = coerce_access_mode(cfg.get("llm_access_mode"))
+        if not ok_m:
+            return False, mode_or_err
+        access_mode = mode_or_err
+
         ok_p, provider_or_err = coerce_provider(cfg.get("llm_provider"))
         if not ok_p:
             return False, provider_or_err
         provider = provider_or_err
+
+        try:
+            temp = float(temperature)
+        except (TypeError, ValueError):
+            temp = 0.2
+
+        model = (cfg.get("llm_model") or "").strip() or default_model_for(provider)
+
+        if access_mode == "agent_cli":
+            return run_agent_cli(
+                cfg,
+                user_prompt=user_prompt.strip(),
+                system_prompt=system_prompt,
+                model=model,
+                temperature=temp,
+                timeout_seconds=int(timeout_seconds),
+            )
+
         url = resolve_chat_url(cfg, provider)
         if not url:
             return (
@@ -35,13 +60,7 @@ class LlmChatComplete(Action):
             )
 
         token = resolve_api_token(cfg, provider)
-        model = (cfg.get("llm_model") or "").strip() or default_model_for(provider)
         headers = build_auth_headers(provider, token, cfg)
-
-        try:
-            temp = float(temperature)
-        except (TypeError, ValueError):
-            temp = 0.2
 
         if provider == "anthropic":
             body, parse = self._anthropic_request_body(

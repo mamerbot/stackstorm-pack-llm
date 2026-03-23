@@ -5,9 +5,10 @@ runner_type: python-script
 enabled: true
 entry_point: llm_chat_complete.py
 description: >
-  Chat completion call using pack configuration: llm_provider (openai, anthropic,
-  cursor), optional llm_chat_completions_url, llm_model, api_token or provider
-  env keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, CURSOR_API_KEY).
+  Chat completion using pack config: llm_access_mode http (default) calls
+  provider HTTP APIs (openai, anthropic, cursor) with api_token or OPENAI_API_KEY
+  / ANTHROPIC_API_KEY / CURSOR_API_KEY; llm_access_mode agent_cli runs a coding
+  agent CLI or stdin JSON bridge (see config.schema.yaml and README).
 parameters:
   user_prompt:
     type: string

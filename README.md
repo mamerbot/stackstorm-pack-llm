@@ -7,7 +7,7 @@ Actions and an Orquesta workflow for **LLM-assisted planning** and **task decomp
 ## Layout
 
 - `pack.yaml` — pack metadata
-- `config.schema.yaml` — optional HTTP settings for `llm_chat_complete` (provider + env API keys)
+- `config.schema.yaml` — optional settings for `llm_chat_complete` (HTTP provider keys or `agent_cli` subprocess bridge)
 - `actions/` — python-script actions + `workflows/plan_to_tasks.yaml`
 - `tests/` — off-box unit tests for the pure plan helpers
 
@@ -18,7 +18,7 @@ Actions and an Orquesta workflow for **LLM-assisted planning** and **task decomp
 | `plan_from_goal` | Build a normalized plan from a goal; optionally merge validated JSON from an LLM. |
 | `normalize_plan_from_llm` | Parse/validate raw LLM output (including ```json fences) into a plan object. |
 | `tasks_from_plan` | Expand a validated plan into pending tasks with stable ids and dependency edges. |
-| `llm_chat_complete` | Chat call via pack config: OpenAI-compatible (`openai`, `cursor`) or Anthropic Messages (`anthropic`); keys from config or `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `CURSOR_API_KEY`. |
+| `llm_chat_complete` | Chat via pack config: `llm_access_mode` `http` (OpenAI-compatible `openai`/`cursor`, Anthropic `anthropic`, env API keys) or `agent_cli` (spawn Claude Code / custom argv / stdin JSON bridge on the runner). |
 | `plan_to_tasks` | Orquesta workflow chaining `plan_from_goal` → `tasks_from_plan`. |
 
 ## `plan_to_tasks` workflow — failure context
@@ -286,7 +286,23 @@ st2 run llm_plan_task.tasks_from_plan \
 
 ### `llm_chat_complete`
 
+#### HTTP access (`llm_access_mode: http`, default)
+
 Set `llm_provider` to `openai` (default), `anthropic`, or `cursor`. Use `api_token` or the matching environment variable on the StackStorm action runner: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `CURSOR_API_KEY`. `llm_chat_completions_url` defaults for OpenAI and Anthropic; **cursor** requires an explicit OpenAI-compatible URL (see `llm_plan_task.yaml.example`). Optional: `cursor_api_basic_auth`, `llm_max_tokens` (Anthropic).
+
+#### Agent / ACP-style access (`llm_access_mode: agent_cli`)
+
+Use this when the **model should authenticate like a coding agent** (interactive CLI OAuth/session, corporate-managed agent install) instead of storing raw provider API keys in StackStorm pack config.
+
+| Profile | What runs | Operator wiring |
+| --- | --- | --- |
+| `claude_code` | `agent_cli_binary` (default `claude`) with `-p`, `--output-format=json`, `--bare` | Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) on the **same host/user context as the StackStorm action runner** (or a dedicated service account that has completed `claude` login). Set `llm_model` for documentation only; the CLI uses its configured model unless you extend argv via `custom`. |
+| `stdin_json_bridge` | `agent_cli_executable` only | Process reads **one JSON line** on stdin (`version`, `user_prompt`, `system_prompt`, `model`, `temperature`) and prints **one JSON object** on stdout with a string field **`content`**. Use this for **Cursor Agent**, **OpenAI Codex CLI**, **OpenCode**, or any tool whose flags change often: put vendor-specific logic in your script and keep the pack config to a single executable path. |
+| `custom` | `agent_cli_argv_json` (JSON array of argv strings) | Substitute `{combined_prompt}`, `{user_prompt}`, `{system_prompt}`, `{model}`, `{temperature}` in each argument. Set `agent_cli_stdout_kind` to `raw_text`, `json_content`, or `claude_code_result` to match the program’s stdout. |
+
+**Security:** `agent_cli` runs arbitrary executables with the StackStorm runner’s privileges. Prefer dedicated users, `agent_cli_working_directory`, and read-only images; review argv and bridge scripts in code review.
+
+**Reference:** see [`contrib/agent_cli/README.md`](contrib/agent_cli/README.md) for stdin protocol details and copy-paste bridge sketches.
 
 ```bash
 st2 run llm_plan_task.llm_chat_complete \
