@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Offline pytest module `tests/test_opencode_bridge_offline.py` exercising
+  `contrib/agent_cli/example_opencode_bridge.py` with a temporary fake OpenCode binary (JSONL
+  `type: text`), including empty/whitespace `model` fallback via `LLM_PLAN_TASK_OPENCODE_MODEL`.
 - Standalone StackStorm actions `validate_plan` and `validate_task_bundle` for validating
   parsed plan and bundle objects at workflow boundaries (same logic as `normalize_plan_from_llm` /
   `tasks_from_plan` success paths).
