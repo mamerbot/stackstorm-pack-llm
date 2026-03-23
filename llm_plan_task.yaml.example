@@ -1,4 +1,17 @@
 ---
+# llm_provider: openai   # default; or anthropic | cursor
 llm_chat_completions_url: "https://api.openai.com/v1/chat/completions"
 llm_model: "gpt-4o-mini"
-api_token: "replace-me"
+# api_token: "replace-me"   # optional if OPENAI_API_KEY / ANTHROPIC_API_KEY / CURSOR_API_KEY is set
+
+# Anthropic example:
+# llm_provider: anthropic
+# llm_chat_completions_url: "https://api.anthropic.com/v1/messages"
+# llm_model: "claude-3-5-sonnet-20241022"
+# # api_token optional when ANTHROPIC_API_KEY is in the action environment
+
+# Cursor example (OpenAI-compatible URL required; key from CURSOR_API_KEY or api_token):
+# llm_provider: cursor
+# llm_chat_completions_url: "https://your-gateway.example/v1/chat/completions"
+# llm_model: "gpt-4o-mini"
+# cursor_api_basic_auth: false

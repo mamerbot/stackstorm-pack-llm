@@ -1,19 +1,46 @@
 ---
+llm_provider:
+  description: >
+    Which upstream API to call. openai and cursor use OpenAI-compatible
+    chat/completions JSON. anthropic uses the Messages API. When unset, openai
+    is assumed.
+  type: string
+  required: false
+  enum:
+    - openai
+    - anthropic
+    - cursor
 llm_chat_completions_url:
   description: >
-    Optional OpenAI-compatible chat completions URL
-    (e.g. https://api.openai.com/v1/chat/completions).
+    Chat HTTP URL. For openai defaults to https://api.openai.com/v1/chat/completions.
+    For anthropic defaults to https://api.anthropic.com/v1/messages. For cursor
+    this must be set (OpenAI-compatible gateway or proxy URL).
   type: string
   required: false
 llm_model:
-  description: Model name to send when using llm_chat_complete.
+  description: Model id to send (provider-specific; see defaults per llm_provider).
   type: string
   required: false
   default: gpt-4o-mini
+llm_max_tokens:
+  description: >
+    Anthropic only: max_tokens for the Messages API (capped for safety).
+  type: integer
+  required: false
+  default: 4096
 api_token:
   description: >
-    Bearer token for the LLM HTTP API. Prefer StackStorm datastore / secrets
-    in real deployments; this key exists for pack config parity.
+    API secret when not using environment variables. If unset, the runner reads
+    OPENAI_API_KEY (openai), ANTHROPIC_API_KEY (anthropic), or CURSOR_API_KEY
+    (cursor). Prefer StackStorm datastore / secrets in real deployments.
   type: string
   secret: true
   required: false
+cursor_api_basic_auth:
+  description: >
+    When true and llm_provider is cursor, send Authorization Basic (key as
+    username, empty password) per Cursor HTTP docs; otherwise Bearer is used
+    (typical for OpenAI-compatible gateways).
+  type: boolean
+  required: false
+  default: false

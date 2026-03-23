@@ -7,7 +7,7 @@ Actions and an Orquesta workflow for **LLM-assisted planning** and **task decomp
 ## Layout
 
 - `pack.yaml` — pack metadata
-- `config.schema.yaml` — optional HTTP settings for `llm_chat_complete`
+- `config.schema.yaml` — optional HTTP settings for `llm_chat_complete` (provider + env API keys)
 - `actions/` — python-script actions + `workflows/plan_to_tasks.yaml`
 - `tests/` — off-box unit tests for the pure plan helpers
 
@@ -18,7 +18,7 @@ Actions and an Orquesta workflow for **LLM-assisted planning** and **task decomp
 | `plan_from_goal` | Build a normalized plan from a goal; optionally merge validated JSON from an LLM. |
 | `normalize_plan_from_llm` | Parse/validate raw LLM output (including ```json fences) into a plan object. |
 | `tasks_from_plan` | Expand a validated plan into pending tasks with stable ids and dependency edges. |
-| `llm_chat_complete` | Optional OpenAI-compatible `chat/completions` POST using pack config. |
+| `llm_chat_complete` | Chat call via pack config: OpenAI-compatible (`openai`, `cursor`) or Anthropic Messages (`anthropic`); keys from config or `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `CURSOR_API_KEY`. |
 | `plan_to_tasks` | Orquesta workflow chaining `plan_from_goal` → `tasks_from_plan`. |
 
 ## `plan_to_tasks` workflow — failure context
@@ -286,7 +286,7 @@ st2 run llm_plan_task.tasks_from_plan \
 
 ### `llm_chat_complete`
 
-Requires pack config: `llm_chat_completions_url` (and optional `api_token`, `llm_model`). See `llm_plan_task.yaml.example`.
+Set `llm_provider` to `openai` (default), `anthropic`, or `cursor`. Use `api_token` or the matching environment variable on the StackStorm action runner: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `CURSOR_API_KEY`. `llm_chat_completions_url` defaults for OpenAI and Anthropic; **cursor** requires an explicit OpenAI-compatible URL (see `llm_plan_task.yaml.example`). Optional: `cursor_api_basic_auth`, `llm_max_tokens` (Anthropic).
 
 ```bash
 st2 run llm_plan_task.llm_chat_complete \

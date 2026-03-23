@@ -5,6 +5,14 @@ import json
 
 import requests
 
+from lib.llm_providers import (
+    anthropic_max_tokens,
+    build_auth_headers,
+    coerce_provider,
+    default_model_for,
+    resolve_api_token,
+    resolve_chat_url,
+)
 from st2actions.runners.pythonrunner import Action
 
 
@@ -13,30 +21,43 @@ class LlmChatComplete(Action):
         if not isinstance(user_prompt, str) or not user_prompt.strip():
             return False, "user_prompt must be a non-empty string"
 
-        url = (self.config or {}).get("llm_chat_completions_url")
-        token = (self.config or {}).get("api_token")
-        model = (self.config or {}).get("llm_model") or "gpt-4o-mini"
-
+        cfg = self.config or {}
+        ok_p, provider_or_err = coerce_provider(cfg.get("llm_provider"))
+        if not ok_p:
+            return False, provider_or_err
+        provider = provider_or_err
+        url = resolve_chat_url(cfg, provider)
         if not url:
             return (
                 False,
-                "Pack config llm_chat_completions_url is not set. "
-                "Install config under /opt/stackstorm/configs/llm_plan_task.yaml",
+                "Pack config llm_chat_completions_url is required for llm_provider=cursor. "
+                "Set CURSOR_API_KEY (or api_token) and an OpenAI-compatible chat URL.",
             )
-        headers = {"Content-Type": "application/json"}
-        if token:
-            headers["Authorization"] = "Bearer %s" % token
 
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": user_prompt.strip()})
+        token = resolve_api_token(cfg, provider)
+        model = (cfg.get("llm_model") or "").strip() or default_model_for(provider)
+        headers = build_auth_headers(provider, token, cfg)
 
-        body = {
-            "model": model,
-            "temperature": float(temperature),
-            "messages": messages,
-        }
+        try:
+            temp = float(temperature)
+        except (TypeError, ValueError):
+            temp = 0.2
+
+        if provider == "anthropic":
+            body, parse = self._anthropic_request_body(
+                model=model,
+                user_prompt=user_prompt.strip(),
+                system_prompt=system_prompt,
+                temperature=temp,
+                cfg=cfg,
+            )
+        else:
+            body, parse = self._openai_compatible_request_body(
+                model=model,
+                user_prompt=user_prompt.strip(),
+                system_prompt=system_prompt,
+                temperature=temp,
+            )
 
         try:
             resp = requests.post(
@@ -56,12 +77,56 @@ class LlmChatComplete(Action):
         except ValueError:
             return False, "Response is not JSON"
 
-        choices = payload.get("choices") or []
-        if not choices:
-            return False, "LLM response missing choices[]"
-        message = choices[0].get("message") or {}
-        content = message.get("content")
-        if not isinstance(content, str):
-            return False, "LLM response missing message.content string"
+        return parse(payload)
 
-        return True, {"raw": payload, "content": content.strip()}
+    @staticmethod
+    def _openai_compatible_request_body(model, user_prompt, system_prompt, temperature):
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": user_prompt})
+
+        body = {
+            "model": model,
+            "temperature": float(temperature),
+            "messages": messages,
+        }
+
+        def parse(payload):
+            choices = payload.get("choices") or []
+            if not choices:
+                return False, "LLM response missing choices[]"
+            message = choices[0].get("message") or {}
+            content = message.get("content")
+            if not isinstance(content, str):
+                return False, "LLM response missing message.content string"
+            return True, {"raw": payload, "content": content.strip()}
+
+        return body, parse
+
+    @staticmethod
+    def _anthropic_request_body(model, user_prompt, system_prompt, temperature, cfg):
+        messages = [{"role": "user", "content": user_prompt}]
+        body = {
+            "model": model,
+            "max_tokens": anthropic_max_tokens(cfg),
+            "messages": messages,
+            "temperature": float(temperature),
+        }
+        if system_prompt:
+            body["system"] = system_prompt
+
+        def parse(payload):
+            blocks = payload.get("content") or []
+            parts = []
+            for block in blocks:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    text = block.get("text")
+                    if isinstance(text, str):
+                        parts.append(text)
+            content = "".join(parts).strip()
+            if not content:
+                return False, "Anthropic response missing text content blocks"
+            return True, {"raw": payload, "content": content}
+
+        return body, parse

@@ -5,8 +5,9 @@ runner_type: python-script
 enabled: true
 entry_point: llm_chat_complete.py
 description: >
-  Optional OpenAI-compatible chat completions call using pack configuration
-  (llm_chat_completions_url, api_token, llm_model).
+  Chat completion call using pack configuration: llm_provider (openai, anthropic,
+  cursor), optional llm_chat_completions_url, llm_model, api_token or provider
+  env keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, CURSOR_API_KEY).
 parameters:
   user_prompt:
     type: string

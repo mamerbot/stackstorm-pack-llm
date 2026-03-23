@@ -242,12 +242,96 @@ def test_normalize_plan_from_llm():
     assert plan["goal"] == "g"
 
 
-def test_llm_chat_complete_requires_config_url():
+def test_llm_chat_complete_cursor_requires_explicit_url():
     mod = _load_action_module("llm_chat_complete")
-    act = mod.LlmChatComplete(config={})
+    act = mod.LlmChatComplete(config={"llm_provider": "cursor"})
     ok, err = act.run(user_prompt="hi")
     assert ok is False
     assert "llm_chat_completions_url" in err
+
+
+def test_llm_chat_complete_openai_default_url_without_config_url():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(config={"api_token": "t"})
+    with mock.patch("requests.post") as post:
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {
+            "choices": [{"message": {"content": "ok"}}],
+        }
+        ok, body = act.run(user_prompt="hi")
+    assert ok is True
+    assert body["content"] == "ok"
+    args, kwargs = post.call_args
+    assert args[0] == "https://api.openai.com/v1/chat/completions"
+
+
+def test_llm_chat_complete_openai_reads_openai_api_key_from_env(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(config={"llm_provider": "openai"})
+    with mock.patch("requests.post") as post:
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {
+            "choices": [{"message": {"content": "x"}}],
+        }
+        ok, _ = act.run(user_prompt="hi")
+    assert ok is True
+    assert post.call_args.kwargs["headers"]["Authorization"] == "Bearer sk-from-env"
+
+
+def test_llm_chat_complete_anthropic_messages_shape(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "ant-env")
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(
+        config={
+            "llm_provider": "anthropic",
+            "llm_model": "claude-3-5-sonnet-20241022",
+        }
+    )
+    with mock.patch("requests.post") as post:
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {
+            "content": [{"type": "text", "text": "hello"}],
+        }
+        ok, body = act.run(user_prompt="u", system_prompt="sys")
+    assert ok is True
+    assert body["content"] == "hello"
+    h = post.call_args.kwargs["headers"]
+    assert h["x-api-key"] == "ant-env"
+    assert h["anthropic-version"] == "2023-06-01"
+    sent = json.loads(post.call_args.kwargs["data"])
+    assert sent["model"] == "claude-3-5-sonnet-20241022"
+    assert sent["system"] == "sys"
+    assert sent["messages"] == [{"role": "user", "content": "u"}]
+    assert sent["max_tokens"] == 4096
+
+
+def test_llm_chat_complete_cursor_bearer_with_custom_url(monkeypatch):
+    monkeypatch.setenv("CURSOR_API_KEY", "cur-env")
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(
+        config={
+            "llm_provider": "cursor",
+            "llm_chat_completions_url": "https://gateway.example/v1/chat/completions",
+        }
+    )
+    with mock.patch("requests.post") as post:
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {
+            "choices": [{"message": {"content": "c"}}],
+        }
+        ok, body = act.run(user_prompt="p")
+    assert ok is True
+    assert body["content"] == "c"
+    assert post.call_args.kwargs["headers"]["Authorization"] == "Bearer cur-env"
+
+
+def test_llm_chat_complete_invalid_provider():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(config={"llm_provider": "azure"})
+    ok, err = act.run(user_prompt="hi")
+    assert ok is False
+    assert "llm_provider" in err
 
 
 def test_llm_chat_complete_happy_path():
