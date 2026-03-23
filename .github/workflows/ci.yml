@@ -1,4 +1,4 @@
-# CI: Ruff (lint + format) and pytest via uv — aligns with common Python + GitHub Actions practice.
+# CI: Ruff (lint + format), pytest via uv, EditorConfig, Keep a Changelog, Conventional Commits.
 # StackStorm pack YAML is validated indirectly by offline tests and manual st2 registration.
 name: CI
 
@@ -12,6 +12,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  editorconfig:
+    name: EditorConfig
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: editorconfig-checker/action-editorconfig-checker@v2.2.0
+      - name: Run editorconfig-checker
+        run: editorconfig-checker
+
+  changelog:
+    name: Keep a Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mindsers/changelog-reader-action@v2.2.3
+        with:
+          validation_level: error
+          path: ./CHANGELOG.md
+
+  commitlint:
+    name: Conventional commits
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: commitlint.config.mjs
+
   lint:
     name: Ruff
     runs-on: ubuntu-latest

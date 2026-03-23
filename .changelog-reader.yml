@@ -1,0 +1,3 @@
+path: ./CHANGELOG.md
+validation_level: error
+validation_depth: 10

@@ -437,7 +437,11 @@ uvx ruff format --check actions tests   # or: uvx ruff format actions tests
 
 The suite includes `tests/test_actions_offline.py`, which imports each Python action with a stub `st2actions` base class so action `run()` methods are exercised without the StackStorm runtime.
 
-On GitHub, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs **Ruff** (`uvx`) and **pytest** on Python 3.10–3.12 via **uv** (see [Astral uv](https://docs.astral.sh/uv/guides/integration/github/) patterns).
+On GitHub, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs **EditorConfig** checks, **Keep a Changelog** validation on [`CHANGELOG.md`](CHANGELOG.md), **Conventional Commits** linting on PRs and pushes, **Ruff** (`uvx`), and **pytest** on Python 3.10–3.12 via **uv** (see [Astral uv](https://docs.astral.sh/uv/guides/integration/github/) patterns).
+
+## Contributing
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages (enforced in CI). User-facing changes should be noted under `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md) following [Keep a Changelog](https://keepachangelog.com/).
 
 ## Full StackStorm smoke (Docker)
 
