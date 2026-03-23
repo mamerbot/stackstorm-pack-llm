@@ -1,4 +1,4 @@
-# Copyright 2026 Emergent / Paperclip contributors
+# Copyright 2026 Emtesseract / Paperclip contributors
 # SPDX-License-Identifier: MIT
 
 """Load pack Python actions without StackStorm installed (fake st2actions only)."""

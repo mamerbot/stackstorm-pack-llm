@@ -7,7 +7,7 @@ description: >
   external LLM (you supply JSON) or to run in a deterministic "template" mode
   for testing and wiring.
 version: 0.1.0
-author: Emergent / Paperclip
+author: Emtesseract / Paperclip
 email: opensource@example.com
 keywords:
   - llm

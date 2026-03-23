@@ -1,4 +1,4 @@
-# Copyright 2026 Emergent / Paperclip contributors
+# Copyright 2026 Emtesseract / Paperclip contributors
 # SPDX-License-Identifier: MIT
 
 """LLM provider defaults: env-based API keys and HTTP shapes for chat-style calls."""

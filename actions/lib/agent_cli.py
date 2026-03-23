@@ -1,4 +1,4 @@
-# Copyright 2026 Emergent / Paperclip contributors
+# Copyright 2026 Emtesseract / Paperclip contributors
 # SPDX-License-Identifier: MIT
 
 """Invoke a coding-agent CLI or operator bridge instead of raw HTTP API keys."""
