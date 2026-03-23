@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 Emergent / Paperclip contributors
+# Copyright 2026 Emtesseract / Paperclip contributors
 # SPDX-License-Identifier: MIT
 """Tiny stdin_json_bridge for wiring tests — replace with a real vendor wrapper."""
 
