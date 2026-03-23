@@ -2,6 +2,8 @@
 
 Actions and an Orquesta workflow for **LLM-assisted planning** and **task decomposition** inside StackStorm.
 
+**Source repository:** [github.com/mamerbot/stackstorm-pack-llm](https://github.com/mamerbot/stackstorm-pack-llm)
+
 ## Layout
 
 - `pack.yaml` — pack metadata
@@ -97,6 +99,7 @@ Validation rejects pathologically large plans before task expansion. Other caps 
 ## Install (StackStorm)
 
 ```bash
+git clone https://github.com/mamerbot/stackstorm-pack-llm.git llm_plan_task
 cd llm_plan_task
 st2 pack install file://$PWD
 ```
