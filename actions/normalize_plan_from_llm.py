@@ -1,5 +1,5 @@
 # Copyright 2026 Emergent / Paperclip contributors
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 
 from lib.plan_model import PlanValidationError, parse_plan_json, validate_plan
 

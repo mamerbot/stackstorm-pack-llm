@@ -1,5 +1,5 @@
 # Copyright 2026 Emergent / Paperclip contributors
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Shared plan/task helpers (pure Python; safe to unit test off-box)."""
 
 from __future__ import annotations

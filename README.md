@@ -158,4 +158,4 @@ Adjust paths to match how you mount the pack into `st2client` / `packs.dev` (see
 
 ## License
 
-Apache-2.0 — see `LICENSE`.
+MIT — see `LICENSE`.

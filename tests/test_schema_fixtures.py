@@ -1,5 +1,5 @@
 # Copyright 2026 Emergent / Paperclip contributors
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 
 """Validate golden plan fixtures against JSON Schema and plan_model.validate_plan."""
 
