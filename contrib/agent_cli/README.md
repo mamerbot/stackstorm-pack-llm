@@ -23,6 +23,27 @@ reply). The action returns `{"raw": <parsed stdout>, "content": ...}` to match t
 
 `example_echo_bridge.py` — returns a fixed string; useful to verify StackStorm wiring.
 
+## Example: OpenCode (`opencode run --format json`)
+
+`example_opencode_bridge.py` — copy-paste reference for **OpenCode** behind
+`agent_cli_profile: stdin_json_bridge`. It reads the stdin JSON line, combines
+`system_prompt` + `user_prompt`, runs `opencode run --format json --model …` with that
+text on the child’s stdin, parses JSONL stdout (assistant `type: "text"` events), and
+prints `{"content": "…"}`.
+
+Environment knobs:
+
+| Variable | Purpose |
+| --- | --- |
+| `OPENCODE_COMMAND` | Preferred path to the OpenCode binary (same idea as Paperclip’s `PAPERCLIP_OPENCODE_COMMAND`). |
+| `LLM_PLAN_TASK_OPENCODE_BIN` | Fallback if `OPENCODE_COMMAND` is unset. |
+| `LLM_PLAN_TASK_OPENCODE_MODEL` | Default model when the stdin JSON `model` field is empty (default `opencode/gpt-5-nano`). |
+| `LLM_PLAN_TASK_OPENCODE_CWD` | Optional working directory for the OpenCode process. |
+| `LLM_PLAN_TASK_OPENCODE_TIMEOUT_SEC` | Subprocess timeout in seconds (default `600`). |
+
+Run the script as the **same POSIX user** that completed OpenCode provider auth on the
+runner (or a dedicated service account that was logged in once).
+
 ## Wiring Cursor, Codex, OpenCode
 
 Vendor CLIs change flags between releases. Recommended pattern:
@@ -32,7 +53,7 @@ Vendor CLIs change flags between releases. Recommended pattern:
    - `json.loads(sys.stdin.readline())`
    - builds the prompt from `system_prompt` + `user_prompt`
    - invokes **your** pinned `cursor`, `codex`, or `opencode` command with the flags
-     your org standardizes
+     your org standardizes (or start from `example_opencode_bridge.py` for OpenCode)
    - prints `json.dumps({"content": assistant_text})`
 
 Run that script as the **same POSIX user** that owns the agent login/session (or use a
