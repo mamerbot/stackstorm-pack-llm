@@ -125,7 +125,13 @@ def test_validate_plan_action_ref_whitespace_treated_absent():
         {
             "goal": "g",
             "steps": [
-                {"id": "a", "title": "A", "description": "", "depends_on": [], "action_ref": "  "},
+                {
+                    "id": "a",
+                    "title": "A",
+                    "description": "",
+                    "depends_on": [],
+                    "action_ref": "  ",
+                },
             ],
         }
     )
@@ -136,7 +142,13 @@ def test_validate_plan_action_ref_invalid_pattern():
     bad = {
         "goal": "g",
         "steps": [
-            {"id": "a", "title": "A", "description": "", "depends_on": [], "action_ref": "no_dot"},
+            {
+                "id": "a",
+                "title": "A",
+                "description": "",
+                "depends_on": [],
+                "action_ref": "no_dot",
+            },
         ],
     }
     with pytest.raises(PlanValidationError) as ei:
@@ -149,7 +161,13 @@ def test_validate_plan_action_ref_oversized():
     bad = {
         "goal": "g",
         "steps": [
-            {"id": "a", "title": "A", "description": "", "depends_on": [], "action_ref": long_ref},
+            {
+                "id": "a",
+                "title": "A",
+                "description": "",
+                "depends_on": [],
+                "action_ref": long_ref,
+            },
         ],
     }
     with pytest.raises(PlanValidationError) as ei:
@@ -215,10 +233,16 @@ def test_validate_plan_action_ref_with_parameters_and_plan_to_tasks():
             ],
         }
     )
-    assert plan["steps"][0]["action_parameters"] == {"cmd": "echo ok", "nested": {"x": 1}}
+    assert plan["steps"][0]["action_parameters"] == {
+        "cmd": "echo ok",
+        "nested": {"x": 1},
+    }
     assert "action_parameters" not in plan["steps"][1]
     bundle = plan_to_tasks(plan)
-    assert bundle["tasks"][0]["action_parameters"] == {"cmd": "echo ok", "nested": {"x": 1}}
+    assert bundle["tasks"][0]["action_parameters"] == {
+        "cmd": "echo ok",
+        "nested": {"x": 1},
+    }
     assert "action_parameters" not in bundle["tasks"][1]
 
 
@@ -303,8 +327,18 @@ def test_plan_to_tasks_execution_order_diamond():
             "steps": [
                 {"id": "root", "title": "R", "description": "", "depends_on": []},
                 {"id": "left", "title": "L", "description": "", "depends_on": ["root"]},
-                {"id": "right", "title": "R2", "description": "", "depends_on": ["root"]},
-                {"id": "join", "title": "J", "description": "", "depends_on": ["left", "right"]},
+                {
+                    "id": "right",
+                    "title": "R2",
+                    "description": "",
+                    "depends_on": ["root"],
+                },
+                {
+                    "id": "join",
+                    "title": "J",
+                    "description": "",
+                    "depends_on": ["left", "right"],
+                },
             ],
         }
     )

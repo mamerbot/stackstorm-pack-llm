@@ -38,7 +38,9 @@ def _fixture_paths() -> list[Path]:
 
 
 @pytest.mark.parametrize("path", _fixture_paths(), ids=lambda p: p.name)
-def test_fixture_matches_json_schema(path: Path, plan_v1_validator: jsonschema.Draft202012Validator):
+def test_fixture_matches_json_schema(
+    path: Path, plan_v1_validator: jsonschema.Draft202012Validator
+):
     with path.open(encoding="utf-8") as f:
         data = json.load(f)
     plan_v1_validator.validate(data)
@@ -55,7 +57,9 @@ def test_fixture_glob_non_empty():
     assert _fixture_paths(), "expected tests/fixtures/plan_*.json golden files"
 
 
-def test_schema_rejects_parameters_without_action_ref(plan_v1_validator: jsonschema.Draft202012Validator):
+def test_schema_rejects_parameters_without_action_ref(
+    plan_v1_validator: jsonschema.Draft202012Validator,
+):
     bad = {
         "goal": "g",
         "steps": [

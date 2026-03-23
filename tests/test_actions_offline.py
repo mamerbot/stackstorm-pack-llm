@@ -226,9 +226,16 @@ def test_tasks_from_plan_rejects_cyclic_depends_on():
 
 def test_normalize_plan_from_llm():
     mod = _load_action_module("normalize_plan_from_llm")
-    raw = """```json
-{"version": "1", "goal": "g", "assumptions": [], "risks": [], "steps": [{"id": "a", "title": "t", "description": "d", "depends_on": []}]}
-```"""
+    inner = {
+        "version": "1",
+        "goal": "g",
+        "assumptions": [],
+        "risks": [],
+        "steps": [
+            {"id": "a", "title": "t", "description": "d", "depends_on": []},
+        ],
+    }
+    raw = "```json\n%s\n```" % json.dumps(inner)
     act = mod.NormalizePlanFromLlm()
     ok, plan = act.run(plan_json_str=raw)
     assert ok is True

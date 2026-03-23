@@ -9,7 +9,7 @@ import re
 import uuid
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 from uuid import UUID
 
 import jsonschema
@@ -24,7 +24,9 @@ class TaskBundleValidationError(ValueError):
 
 
 _PLAN_V1_SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "schemas" / "plan.v1.json"
-_TASK_BUNDLE_V1_SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "schemas" / "task_bundle.v1.json"
+_TASK_BUNDLE_V1_SCHEMA_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "schemas" / "task_bundle.v1.json"
+)
 
 
 @lru_cache(maxsize=1)
@@ -46,7 +48,7 @@ def _schema_validation_error_message(exc: jsonschema.ValidationError, label: str
     return "%s JSON Schema validation failed at %s: %s" % (label, loc, exc.message)
 
 
-def _validate_plan_against_v1_schema(plan: Dict[str, Any]) -> None:
+def _validate_plan_against_v1_schema(plan: dict[str, Any]) -> None:
     """Structural check against ``schemas/plan.v1.json`` (Draft 2020-12)."""
 
     try:
@@ -55,7 +57,7 @@ def _validate_plan_against_v1_schema(plan: Dict[str, Any]) -> None:
         raise PlanValidationError(_schema_validation_error_message(exc, "plan")) from exc
 
 
-def _validate_task_bundle_against_v1_schema(bundle: Dict[str, Any]) -> None:
+def _validate_task_bundle_against_v1_schema(bundle: dict[str, Any]) -> None:
     """Structural check against ``schemas/task_bundle.v1.json`` (Draft 2020-12)."""
 
     try:
@@ -66,21 +68,20 @@ def _validate_task_bundle_against_v1_schema(bundle: Dict[str, Any]) -> None:
         ) from exc
 
 
-def _assert_task_bundle_invariants(bundle: Dict[str, Any], plan: Dict[str, Any]) -> None:
+def _assert_task_bundle_invariants(bundle: dict[str, Any], plan: dict[str, Any]) -> None:
     """Python-only checks: task rows mirror plan steps; execution_order matches code."""
 
-    tasks: List[Dict[str, Any]] = bundle["tasks"]
+    tasks: list[dict[str, Any]] = bundle["tasks"]
     steps = plan["steps"]
     if len(tasks) != len(steps):
         raise TaskBundleValidationError(
-            "bundle.tasks length (%d) must match plan.steps length (%d)"
-            % (len(tasks), len(steps))
+            "bundle.tasks length (%d) must match plan.steps length (%d)" % (len(tasks), len(steps))
         )
     task_ids = [t["id"] for t in tasks]
     id_set = set(task_ids)
     if len(id_set) != len(task_ids):
         raise TaskBundleValidationError("bundle.tasks contains duplicate task ids")
-    for i, (t, s) in enumerate(zip(tasks, steps)):
+    for i, (t, s) in enumerate(zip(tasks, steps, strict=True)):
         exp_id = "task-%s" % s["id"]
         if t["id"] != exp_id:
             raise TaskBundleValidationError(
@@ -92,9 +93,7 @@ def _assert_task_bundle_invariants(bundle: Dict[str, Any], plan: Dict[str, Any])
                 % (i, i, t["step_id"], s["id"])
             )
         if t["title"] != s["title"]:
-            raise TaskBundleValidationError(
-                "bundle.tasks[%d].title must match plan step title" % i
-            )
+            raise TaskBundleValidationError("bundle.tasks[%d].title must match plan step title" % i)
         if t["description"] != s["description"]:
             raise TaskBundleValidationError(
                 "bundle.tasks[%d].description must match plan step description" % i
@@ -102,8 +101,7 @@ def _assert_task_bundle_invariants(bundle: Dict[str, Any], plan: Dict[str, Any])
         exp_deps = ["task-%s" % d for d in s["depends_on"]]
         if t["depends_on"] != exp_deps:
             raise TaskBundleValidationError(
-                "bundle.tasks[%d].depends_on must be %r (got %r)"
-                % (i, exp_deps, t["depends_on"])
+                "bundle.tasks[%d].depends_on must be %r (got %r)" % (i, exp_deps, t["depends_on"])
             )
         if t["status"] != "pending":
             raise TaskBundleValidationError(
@@ -160,7 +158,7 @@ def _assert_task_bundle_invariants(bundle: Dict[str, Any], plan: Dict[str, Any])
         raise TaskBundleValidationError("bundle.run_id must be a UUID string: %s" % exc) from exc
 
 
-def validate_task_bundle(bundle: Any) -> Dict[str, Any]:
+def validate_task_bundle(bundle: Any) -> dict[str, Any]:
     """Validate a task bundle: JSON Schema (v1), embedded plan (plan v1), and invariants."""
 
     if not isinstance(bundle, dict):
@@ -190,7 +188,8 @@ MAX_STEP_DESCRIPTION_CHARS = 16384
 MAX_STEP_DEPENDS_ON_ENTRIES = 64
 MAX_STEP_ACTION_REF_CHARS = 256
 
-# Per-step StackStorm action parameters (JSON object only). Validated before merge into normalized plans.
+# Per-step StackStorm action parameters (JSON object only).
+# Validated before merge into normalized plans.
 MAX_ACTION_PARAMETERS_UTF8_BYTES = 8192
 MAX_ACTION_PARAMETERS_NESTING_DEPTH = 16
 MAX_ACTION_PARAMETERS_KEYS_PER_OBJECT = 64
@@ -204,10 +203,12 @@ _ACTION_REF_RE = re.compile(r"^[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+$")
 def _raise_if_too_long(field_label: str, value: str, limit: int) -> None:
     n = len(value)
     if n > limit:
-        raise PlanValidationError("%s exceeds max length (%d characters, limit %d)" % (field_label, n, limit))
+        raise PlanValidationError(
+            "%s exceeds max length (%d characters, limit %d)" % (field_label, n, limit)
+        )
 
 
-def _validate_action_parameters(obj: Dict[str, Any], step_index: int) -> Dict[str, Any]:
+def _validate_action_parameters(obj: dict[str, Any], step_index: int) -> dict[str, Any]:
     """Validate shape/size of action_parameters; return a JSON-roundtripped copy."""
 
     def walk(node: Any, depth: int) -> None:
@@ -257,14 +258,13 @@ def _validate_action_parameters(obj: Dict[str, Any], step_index: int) -> Dict[st
     if n_bytes > MAX_ACTION_PARAMETERS_UTF8_BYTES:
         raise PlanValidationError(
             "plan.steps[%d].action_parameters serialized size exceeds limit "
-            "(%d UTF-8 bytes, limit %d)"
-            % (step_index, n_bytes, MAX_ACTION_PARAMETERS_UTF8_BYTES)
+            "(%d UTF-8 bytes, limit %d)" % (step_index, n_bytes, MAX_ACTION_PARAMETERS_UTF8_BYTES)
         )
     walk(obj, 0)
     return json.loads(blob)
 
 
-def _dependency_cycle_step_ids(steps: List[Dict[str, Any]]) -> Optional[List[str]]:
+def _dependency_cycle_step_ids(steps: list[dict[str, Any]]) -> list[str] | None:
     """Return step ids on a directed cycle in the depends_on graph, or None.
 
     Traversal follows edges step -> prerequisite (each entry in depends_on).
@@ -273,7 +273,7 @@ def _dependency_cycle_step_ids(steps: List[Dict[str, Any]]) -> Optional[List[str
     visiting: set[str] = set()
     visited: set[str] = set()
 
-    def dfs(u: str, path: List[str]) -> Optional[List[str]]:
+    def dfs(u: str, path: list[str]) -> list[str] | None:
         if u in visiting:
             i = path.index(u)
             return path[i:]
@@ -314,13 +314,13 @@ def parse_plan_json(plan_json_str: str) -> Any:
         raise PlanValidationError("plan_json_str is not valid JSON: %s" % exc) from exc
 
 
-def validate_plan(plan: Any) -> Dict[str, Any]:
+def validate_plan(plan: Any) -> dict[str, Any]:
     if not isinstance(plan, dict):
         raise PlanValidationError("plan must be a JSON object")
     _validate_plan_against_v1_schema(plan)
     goal = plan.get("goal")
     if not isinstance(goal, str) or not goal.strip():
-        raise PlanValidationError('plan.goal must be a non-empty string')
+        raise PlanValidationError("plan.goal must be a non-empty string")
     _raise_if_too_long("plan.goal", goal.strip(), MAX_PLAN_GOAL_CHARS)
     ver_raw = str(plan.get("version") or "1")
     _raise_if_too_long("plan.version", ver_raw, MAX_PLAN_VERSION_CHARS)
@@ -332,7 +332,7 @@ def validate_plan(plan: Any) -> Dict[str, Any]:
             "plan.steps count exceeds limit (got %d, limit %d)" % (len(steps), MAX_PLAN_STEPS)
         )
     seen: set[str] = set()
-    norm_steps: List[Dict[str, Any]] = []
+    norm_steps: list[dict[str, Any]] = []
     for i, step in enumerate(steps):
         if not isinstance(step, dict):
             raise PlanValidationError("plan.steps[%d] must be an object" % i)
@@ -350,7 +350,9 @@ def validate_plan(plan: Any) -> Dict[str, Any]:
             raise PlanValidationError("plan.steps[%d].description must be a string if set" % i)
         if isinstance(desc, str) and desc.strip():
             _raise_if_too_long(
-                "plan.steps[%d].description" % i, desc.strip(), MAX_STEP_DESCRIPTION_CHARS
+                "plan.steps[%d].description" % i,
+                desc.strip(),
+                MAX_STEP_DESCRIPTION_CHARS,
             )
         deps = step.get("depends_on", [])
         if deps is None:
@@ -365,27 +367,26 @@ def validate_plan(plan: Any) -> Dict[str, Any]:
         for j, dep in enumerate(deps):
             if isinstance(dep, str) and dep.strip():
                 _raise_if_too_long(
-                    "plan.steps[%d].depends_on[%d]" % (i, j), dep.strip(), MAX_STEP_ID_CHARS
+                    "plan.steps[%d].depends_on[%d]" % (i, j),
+                    dep.strip(),
+                    MAX_STEP_ID_CHARS,
                 )
         action_ref_raw = step.get("action_ref")
-        action_ref_norm: Optional[str] = None
+        action_ref_norm: str | None = None
         if action_ref_raw is not None:
             if not isinstance(action_ref_raw, str):
                 raise PlanValidationError("plan.steps[%d].action_ref must be a string if set" % i)
             ar = action_ref_raw.strip()
             if ar:
-                _raise_if_too_long(
-                    "plan.steps[%d].action_ref" % i, ar, MAX_STEP_ACTION_REF_CHARS
-                )
+                _raise_if_too_long("plan.steps[%d].action_ref" % i, ar, MAX_STEP_ACTION_REF_CHARS)
                 if not _ACTION_REF_RE.match(ar):
                     raise PlanValidationError(
                         "plan.steps[%d].action_ref must look like pack.action "
-                        "(non-empty pack and action tokens; letters, digits, underscore only)"
-                        % i
+                        "(non-empty pack and action tokens; letters, digits, underscore only)" % i
                     )
                 action_ref_norm = ar
         ap_raw = step.get("action_parameters")
-        ap_norm: Optional[Dict[str, Any]] = None
+        ap_norm: dict[str, Any] | None = None
         if ap_raw is not None:
             if not isinstance(ap_raw, dict):
                 raise PlanValidationError(
@@ -399,7 +400,7 @@ def validate_plan(plan: Any) -> Dict[str, Any]:
         if sid in seen:
             raise PlanValidationError("duplicate step id %r" % sid)
         seen.add(sid)
-        step_out: Dict[str, Any] = {
+        step_out: dict[str, Any] = {
             "id": sid.strip(),
             "title": title.strip(),
             "description": (desc or "").strip(),
@@ -435,7 +436,9 @@ def validate_plan(plan: Any) -> Dict[str, Any]:
     for j, a in enumerate(assumptions):
         if isinstance(a, str) and a.strip():
             _raise_if_too_long(
-                "plan.assumptions[%d]" % j, a.strip(), MAX_PLAN_ASSUMPTION_RISK_ITEM_CHARS
+                "plan.assumptions[%d]" % j,
+                a.strip(),
+                MAX_PLAN_ASSUMPTION_RISK_ITEM_CHARS,
             )
     risks = plan.get("risks", [])
     if risks is None:
@@ -444,7 +447,8 @@ def validate_plan(plan: Any) -> Dict[str, Any]:
         raise PlanValidationError("plan.risks must be a list of strings")
     if len(risks) > MAX_PLAN_RISK_ENTRIES:
         raise PlanValidationError(
-            "plan.risks count exceeds limit (got %d, limit %d)" % (len(risks), MAX_PLAN_RISK_ENTRIES)
+            "plan.risks count exceeds limit (got %d, limit %d)"
+            % (len(risks), MAX_PLAN_RISK_ENTRIES)
         )
     for j, r in enumerate(risks):
         if isinstance(r, str) and r.strip():
@@ -458,7 +462,7 @@ def validate_plan(plan: Any) -> Dict[str, Any]:
     }
 
 
-def template_plan_from_goal(goal: str) -> Dict[str, Any]:
+def template_plan_from_goal(goal: str) -> dict[str, Any]:
     g = goal.strip()
     return {
         "version": "1",
@@ -496,18 +500,18 @@ def template_plan_from_goal(goal: str) -> Dict[str, Any]:
     }
 
 
-def _execution_order_for_tasks(tasks: List[Dict[str, Any]]) -> List[str]:
+def _execution_order_for_tasks(tasks: list[dict[str, Any]]) -> list[str]:
     """Kahn topological order over task ids using each task's depends_on edges.
 
     ``validate_plan`` ensures the step graph is acyclic; task edges mirror step deps.
     When multiple tasks are ready, order by plan step list index (position in *tasks*),
     then by task id for a fully deterministic tie-break.
     """
-    task_ids: List[str] = [t["id"] for t in tasks]
-    id_set: Set[str] = set(task_ids)
+    task_ids: list[str] = [t["id"] for t in tasks]
+    id_set: set[str] = set(task_ids)
     step_index = {t["id"]: i for i, t in enumerate(tasks)}
-    successors: Dict[str, List[str]] = {tid: [] for tid in task_ids}
-    indegree: Dict[str, int] = {}
+    successors: dict[str, list[str]] = {tid: [] for tid in task_ids}
+    indegree: dict[str, int] = {}
     for t in tasks:
         tid = t["id"]
         deps = t.get("depends_on", [])
@@ -515,8 +519,8 @@ def _execution_order_for_tasks(tasks: List[Dict[str, Any]]) -> List[str]:
         for dep in deps:
             if dep in id_set:
                 successors[dep].append(tid)
-    order: List[str] = []
-    placed: Set[str] = set()
+    order: list[str] = []
+    placed: set[str] = set()
     while len(placed) < len(task_ids):
         ready = [tid for tid in task_ids if indegree[tid] == 0 and tid not in placed]
         if not ready:
@@ -531,10 +535,10 @@ def _execution_order_for_tasks(tasks: List[Dict[str, Any]]) -> List[str]:
     return order
 
 
-def plan_to_tasks(plan: Dict[str, Any]) -> Dict[str, Any]:
+def plan_to_tasks(plan: dict[str, Any]) -> dict[str, Any]:
     tasks = []
     for step in plan["steps"]:
-        task: Dict[str, Any] = {
+        task: dict[str, Any] = {
             "id": "task-%s" % step["id"],
             "step_id": step["id"],
             "title": step["title"],
@@ -558,7 +562,7 @@ def plan_to_tasks(plan: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def merge_plan_with_goal(plan: Dict[str, Any], goal: str) -> Dict[str, Any]:
+def merge_plan_with_goal(plan: dict[str, Any], goal: str) -> dict[str, Any]:
     out = dict(plan)
     out["goal"] = goal.strip() or out.get("goal", "")
     return out

@@ -119,15 +119,32 @@ st2 run llm_plan_task.plan_to_tasks goal="Roll out monitoring"
 
 ## Tests (without StackStorm)
 
+**pip / venv** (minimal):
+
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements-tests.txt
 pytest -q
 ```
 
+**uv** (matches CI):
+
+```bash
+uv venv && . .venv/bin/activate
+uv pip install -r requirements-tests.txt
+uv run pytest -q
+```
+
+**Ruff** (lint + format; config in `pyproject.toml`):
+
+```bash
+uvx ruff check actions tests
+uvx ruff format --check actions tests   # or: uvx ruff format actions tests
+```
+
 The suite includes `tests/test_actions_offline.py`, which imports each Python action with a stub `st2actions` base class so action `run()` methods are exercised without the StackStorm runtime.
 
-When this pack lives in a Git repository, GitHub Actions runs the same suite (see `.github/workflows/ci.yml`).
+On GitHub, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs **Ruff** (`uvx`) and **pytest** on Python 3.10–3.12 via **uv** (see [Astral uv](https://docs.astral.sh/uv/guides/integration/github/) patterns).
 
 ## Full StackStorm smoke (Docker)
 

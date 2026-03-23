@@ -65,7 +65,10 @@ def test_validate_task_bundle_rejects_bad_execution_order_json_schema(
     """execution_order items must be strings (schema); Python checks permutation separately."""
 
     bad = {
-        "plan": {"goal": "g", "steps": [{"id": "a", "title": "A", "description": "", "depends_on": []}]},
+        "plan": {
+            "goal": "g",
+            "steps": [{"id": "a", "title": "A", "description": "", "depends_on": []}],
+        },
         "tasks": [
             {
                 "id": "task-a",

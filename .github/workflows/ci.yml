@@ -1,3 +1,5 @@
+# CI: Ruff (lint + format) and pytest via uv — aligns with common Python + GitHub Actions practice.
+# StackStorm pack YAML is validated indirectly by offline tests and manual st2 registration.
 name: CI
 
 on:
@@ -5,13 +7,38 @@ on:
     branches: [main, master]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  lint:
+    name: Ruff
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.11"
-      - run: pip install -r requirements-tests.txt
-      - run: pytest -q
+          enable-cache: true
+      - name: Ruff check
+        run: uvx ruff check actions tests
+      - name: Ruff format
+        run: uvx ruff format --check actions tests
+
+  test:
+    name: Pytest (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+      - name: Install test dependencies
+        run: uv pip install -r requirements-tests.txt
+      - name: Run tests
+        run: uv run pytest -q

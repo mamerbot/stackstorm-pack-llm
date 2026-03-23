@@ -1,0 +1,27 @@
+# StackStorm still installs runtime deps from requirements.txt / pack metadata.
+# This file configures Ruff and optional uv-based dev workflows (see README).
+[project]
+name = "llm-plan-task"
+version = "1.0.0"
+description = "StackStorm pack: LLM-assisted planning (tooling metadata for CI)."
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["actions", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+]
+
+[tool.ruff.lint.per-file-ignores]
+# StackStorm action modules import st2 at runtime; tests inject stubs via sys.path.
+"actions/*.py" = ["E402", "I001"]
+"tests/*.py" = ["E402"]

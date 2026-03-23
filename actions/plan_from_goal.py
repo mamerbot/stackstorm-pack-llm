@@ -19,7 +19,10 @@ class PlanFromGoal(Action):
         g = goal.strip()
         if structured_plan_json:
             if not isinstance(structured_plan_json, str) or not structured_plan_json.strip():
-                return False, "structured_plan_json must be a non-empty string when provided"
+                return (
+                    False,
+                    "structured_plan_json must be a non-empty string when provided",
+                )
             try:
                 parsed = parse_plan_json(structured_plan_json)
                 plan = validate_plan(parsed)
