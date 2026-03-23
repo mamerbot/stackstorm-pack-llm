@@ -1,5 +1,5 @@
 # CI: Ruff (lint + format), pytest via uv, EditorConfig, Keep a Changelog, Conventional Commits.
-# StackStorm pack YAML is validated indirectly by offline tests and manual st2 registration.
+# StackStorm: offline pytest covers helpers; stackstorm-pack job installs into a real ST2 (st2-docker).
 name: CI
 
 on:
@@ -75,3 +75,63 @@ jobs:
         run: uv pip install -r tests-requirements.txt
       - name: Run tests
         run: uv run pytest -q
+
+  stackstorm-pack:
+    name: StackStorm pack install (st2-docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Layout pack as llm_plan_task for ST2_PACKS_DEV
+        run: |
+          mkdir -p "${RUNNER_TEMP}/st2-packs-dev"
+          ln -s "${GITHUB_WORKSPACE}" "${RUNNER_TEMP}/st2-packs-dev/llm_plan_task"
+
+      - name: Clone StackStorm st2-docker
+        run: |
+          git clone --depth 1 https://github.com/StackStorm/st2-docker.git "${RUNNER_TEMP}/st2-docker"
+
+      - name: Start st2-docker, install pack, sanity checks
+        env:
+          ST2_DOCKER_DIR: ${{ runner.temp }}/st2-docker
+          ST2_PACKS_DEV: ${{ runner.temp }}/st2-packs-dev
+          # Pin images for reproducible CI (matches tags on Docker Hub stackstorm/*)
+          ST2_VERSION: "3.8.1"
+        run: |
+          set -euxo pipefail
+          cd "${ST2_DOCKER_DIR}"
+          cleanup() {
+            docker compose down -v --remove-orphans || true
+          }
+          trap cleanup EXIT
+
+          docker compose pull
+          docker compose up -d
+
+          # Wait until st2client can talk to the API (cold pulls + mongo can exceed 60s)
+          for i in $(seq 1 90); do
+            if docker compose exec -T st2client st2 pack list >/dev/null 2>&1; then
+              echo "StackStorm API ready (attempt ${i})"
+              break
+            fi
+            if [ "${i}" -eq 90 ]; then
+              echo "StackStorm did not become ready in time"
+              docker compose ps || true
+              docker compose logs --tail=300 st2api || true
+              docker compose logs --tail=200 st2client || true
+              exit 1
+            fi
+            sleep 5
+          done
+
+          # Same path shape as host file://$GITHUB_WORKSPACE, mounted at packs.dev/<pack_ref>/
+          docker compose exec -T st2client bash -lc \
+            'st2 pack install file:///opt/stackstorm/packs.dev/llm_plan_task'
+
+          docker compose exec -T st2client st2 pack get llm_plan_task
+          docker compose exec -T st2client st2 action list -p llm_plan_task
+
+          # Catch broken requirements / runner wiring not visible to offline pytest
+          docker compose exec -T st2client bash -lc \
+            'st2 run packs.setup_virtualenv packs=llm_plan_task'
