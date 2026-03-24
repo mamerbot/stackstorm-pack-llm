@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- CI: **stackstorm-pack** job runs Orquesta workflow `llm_plan_task.plan_to_tasks` with goal
+  `ci-offline-plan-to-tasks` and `structured_plan_json` from `tests/fixtures/plan_minimal.json`
+  (host `PLAN_JSON` + `st2 run ... --wait`) so workflow registration and cross-step data passing are
+  exercised in st2-docker alongside standalone actions.
+- CI: after `validate_plan`, the **stackstorm-pack** job runs `llm_plan_task.validate_task_bundle`
+  with `tests/fixtures/bundle_minimal.json` inside st2-docker (same host `BUNDLE_JSON` env pattern as
+  `PLAN_JSON` for plan validation).
 - Offline pytest module `tests/test_opencode_bridge_offline.py` exercising
   `contrib/agent_cli/example_opencode_bridge.py` with a temporary fake OpenCode binary (JSONL
   `type: text`), including empty/whitespace `model` fallback via `LLM_PLAN_TASK_OPENCODE_MODEL`.
