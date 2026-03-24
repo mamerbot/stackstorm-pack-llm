@@ -6,6 +6,7 @@ import json
 import requests
 
 from lib.agent_cli import run_agent_cli
+from lib.llm_prompt_limits import validate_chat_prompts
 from lib.llm_providers import (
     anthropic_max_tokens,
     build_auth_headers,
@@ -18,12 +19,35 @@ from lib.llm_providers import (
 from st2actions.runners.pythonrunner import Action
 
 
+def _effective_call_timeout(cfg: dict, timeout_seconds) -> int:
+    """Per-call timeout capped by pack config (GAP-4)."""
+
+    default_cap = 120
+    try:
+        cap_raw = cfg.get("llm_call_timeout_seconds")
+        cap = int(cap_raw) if cap_raw is not None else default_cap
+    except (TypeError, ValueError):
+        cap = default_cap
+    cap = max(1, min(cap, 86400))
+    try:
+        req = int(timeout_seconds)
+    except (TypeError, ValueError):
+        req = cap
+    req = max(1, min(req, 86400))
+    return min(req, cap)
+
+
 class LlmChatComplete(Action):
     def run(self, user_prompt, system_prompt=None, temperature=0.2, timeout_seconds=60):
         if not isinstance(user_prompt, str) or not user_prompt.strip():
             return False, "user_prompt must be a non-empty string"
 
         cfg = self.config or {}
+        ok_prompt, prompt_err = validate_chat_prompts(user_prompt, system_prompt, cfg)
+        if not ok_prompt:
+            return False, prompt_err
+
+        effective_timeout = _effective_call_timeout(cfg, timeout_seconds)
         ok_m, mode_or_err = coerce_access_mode(cfg.get("llm_access_mode"))
         if not ok_m:
             return False, mode_or_err
@@ -48,7 +72,7 @@ class LlmChatComplete(Action):
                 system_prompt=system_prompt,
                 model=model,
                 temperature=temp,
-                timeout_seconds=int(timeout_seconds),
+                timeout_seconds=effective_timeout,
             )
 
         url = resolve_chat_url(cfg, provider)
@@ -83,8 +107,10 @@ class LlmChatComplete(Action):
                 url,
                 headers=headers,
                 data=json.dumps(body),
-                timeout=int(timeout_seconds),
+                timeout=effective_timeout,
             )
+        except requests.Timeout:
+            return False, "LLM HTTP call timed out after %s seconds" % effective_timeout
         except requests.RequestException as exc:
             return False, "HTTP error: %s" % exc
 

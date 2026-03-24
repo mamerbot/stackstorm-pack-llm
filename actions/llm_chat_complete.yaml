@@ -24,3 +24,5 @@ parameters:
     type: integer
     required: false
     default: 60
+    description: >
+      Per-call timeout in seconds; capped by pack config llm_call_timeout_seconds (smaller value wins).

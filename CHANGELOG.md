@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- `llm_chat_complete`: enforce configurable UTF-8 byte caps on `user_prompt` / `system_prompt` and reject NUL bytes before any HTTP or subprocess I/O (`max_user_prompt_bytes` / `max_system_prompt_bytes`, default 32 KiB each).
+- `llm_chat_complete` agent_cli mode: resolve `agent_cli_executable` / `agent_cli_binary` / custom argv0 to a real path, require a regular executable file, and optionally enforce `agent_cli_allowed_executable_prefix`.
+- Configurable `llm_call_timeout_seconds` (default 120) caps both HTTP `requests` timeouts and `agent_cli` subprocess timeouts (action `timeout_seconds` cannot exceed it).
+
 ## [0.2.1] - 2026-03-24
 
 ### Fixed

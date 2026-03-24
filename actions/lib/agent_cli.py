@@ -6,6 +6,9 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import stat
 import subprocess
 from typing import Any
 
@@ -14,6 +17,75 @@ _STDIN_JSON_VERSION = "1"
 _PROFILES = frozenset({"stdin_json_bridge", "claude_code", "custom"})
 
 _STDOUT_KINDS = frozenset({"json_content", "claude_code_result", "raw_text"})
+
+
+def agent_cli_allowed_executable_prefix(cfg: dict[str, Any]) -> str | None:
+    raw = cfg.get("agent_cli_allowed_executable_prefix")
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    return s or None
+
+
+def resolve_validated_cli_path(
+    raw: str,
+    *,
+    field_label: str,
+    allowed_prefix: str | None,
+) -> tuple[bool, str]:
+    """Resolve argv0 to realpath; require regular executable; optional allowed-prefix check."""
+
+    s = str(raw).strip()
+    if not s:
+        return False, "%s must be a non-empty string" % field_label
+
+    candidate = s
+    if not os.path.isabs(candidate):
+        found = shutil.which(candidate)
+        if not found:
+            return (
+                False,
+                "%s must be an absolute path to an existing executable "
+                "(got %r; not found on PATH)" % (field_label, raw),
+            )
+        candidate = found
+
+    try:
+        real = os.path.realpath(candidate)
+    except OSError as exc:
+        return False, "%s path could not be resolved (%s): %s" % (field_label, candidate, exc)
+
+    try:
+        st = os.stat(real)
+    except OSError as exc:
+        return (
+            False,
+            "%s path does not exist or is not accessible (%s): %s" % (field_label, real, exc),
+        )
+
+    if not stat.S_ISREG(st.st_mode):
+        return False, "%s must be a regular file (got %s)" % (field_label, real)
+
+    if not os.access(real, os.X_OK):
+        return False, "%s must be executable (got %s)" % (field_label, real)
+
+    if allowed_prefix:
+        try:
+            prefix_real = os.path.realpath(allowed_prefix)
+        except OSError as exc:
+            return (
+                False,
+                "agent_cli_allowed_executable_prefix could not be resolved (%s): %s"
+                % (allowed_prefix, exc),
+            )
+        if real != prefix_real and not real.startswith(prefix_real + os.sep):
+            return (
+                False,
+                "%s (%s) is outside agent_cli_allowed_executable_prefix (%s)"
+                % (field_label, real, prefix_real),
+            )
+
+    return True, real
 
 
 def coerce_agent_cli_profile(raw: Any) -> tuple[bool, str]:
@@ -153,6 +225,7 @@ def run_agent_cli(
         cwd = cwd.strip()
 
     combined = combined_prompt(user_prompt, system_prompt)
+    prefix = agent_cli_allowed_executable_prefix(cfg)
 
     if profile == "stdin_json_bridge":
         exe = cfg.get("agent_cli_executable")
@@ -161,7 +234,14 @@ def run_agent_cli(
                 False,
                 "agent_cli_executable is required when agent_cli_profile=stdin_json_bridge",
             )
-        argv = [exe.strip()]
+        ok_path, path_or_err = resolve_validated_cli_path(
+            exe.strip(),
+            field_label="agent_cli_executable",
+            allowed_prefix=prefix,
+        )
+        if not ok_path:
+            return False, path_or_err
+        argv = [path_or_err]
         stdin_obj = {
             "version": _STDIN_JSON_VERSION,
             "user_prompt": user_prompt.strip(),
@@ -176,8 +256,15 @@ def run_agent_cli(
             binary = "claude"
         else:
             binary = binary.strip()
-        argv = [
+        ok_path, path_or_err = resolve_validated_cli_path(
             binary,
+            field_label="agent_cli_binary",
+            allowed_prefix=prefix,
+        )
+        if not ok_path:
+            return False, path_or_err
+        argv = [
+            path_or_err,
             "-p",
             combined,
             "--output-format",
@@ -197,6 +284,16 @@ def run_agent_cli(
             model=model,
             temperature=float(temperature),
         )
+        if not argv:
+            return False, "agent_cli_argv_json must expand to a non-empty argv"
+        ok_path, path_or_err = resolve_validated_cli_path(
+            argv[0],
+            field_label="agent_cli_argv_json executable (first argv element)",
+            allowed_prefix=prefix,
+        )
+        if not ok_path:
+            return False, path_or_err
+        argv[0] = path_or_err
         stdin_bytes = None
 
     try:

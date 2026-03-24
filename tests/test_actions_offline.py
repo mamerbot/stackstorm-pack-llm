@@ -15,6 +15,7 @@ from subprocess import CompletedProcess
 from unittest import mock
 
 import pytest
+import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 ACTIONS = ROOT / "actions"
@@ -378,6 +379,57 @@ def test_llm_chat_complete_openai_default_url_without_config_url():
     assert body["content"] == "ok"
     args, kwargs = post.call_args
     assert args[0] == "https://api.openai.com/v1/chat/completions"
+    assert kwargs.get("timeout") == 60
+
+
+def test_llm_chat_complete_http_timeout_uses_config_cap():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(
+        config={
+            "api_token": "t",
+            "llm_call_timeout_seconds": 30,
+        }
+    )
+    with mock.patch("requests.post") as post:
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {
+            "choices": [{"message": {"content": "ok"}}],
+        }
+        ok, _ = act.run(user_prompt="hi", timeout_seconds=90)
+    assert ok is True
+    assert post.call_args.kwargs.get("timeout") == 30
+
+
+def test_llm_chat_complete_http_timeout_error_message():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(
+        config={
+            "api_token": "t",
+            "llm_chat_completions_url": "https://example.invalid/v1/chat/completions",
+        }
+    )
+    with mock.patch("requests.post") as post:
+        post.side_effect = requests.exceptions.Timeout()
+        ok, err = act.run(user_prompt="hi")
+    assert ok is False
+    assert "timed out" in err.lower()
+
+
+def test_llm_chat_complete_rejects_oversized_user_prompt():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(config={"max_user_prompt_bytes": 10, "api_token": "t"})
+    ok, err = act.run(user_prompt="x" * 50)
+    assert ok is False
+    assert "user_prompt" in err
+    assert "byte" in err
+
+
+def test_llm_chat_complete_rejects_nul_in_prompt():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(config={"api_token": "t"})
+    ok, err = act.run(user_prompt="a\x00b")
+    assert ok is False
+    assert "NUL" in err
 
 
 def test_llm_chat_complete_openai_reads_openai_api_key_from_env(monkeypatch):
@@ -465,19 +517,23 @@ def test_llm_chat_complete_agent_cli_requires_profile():
     assert "agent_cli_profile" in err
 
 
-def test_llm_chat_complete_agent_cli_stdin_json_bridge():
+def test_llm_chat_complete_agent_cli_stdin_json_bridge(tmp_path):
     mod = _load_action_module("llm_chat_complete")
     ac = sys.modules["lib.agent_cli"]
+    bridge = tmp_path / "bridge.sh"
+    bridge.write_text('#!/bin/sh\necho \'{"content":"from-bridge"}\'\n', encoding="utf-8")
+    bridge.chmod(0o755)
+    bridge_resolved = str(bridge.resolve())
     act = mod.LlmChatComplete(
         config={
             "llm_access_mode": "agent_cli",
             "agent_cli_profile": "stdin_json_bridge",
-            "agent_cli_executable": "/opt/stackstorm/scripts/bridge.sh",
+            "agent_cli_executable": bridge_resolved,
         }
     )
     with mock.patch.object(ac.subprocess, "run") as run:
         run.return_value = CompletedProcess(
-            ["/opt/stackstorm/scripts/bridge.sh"],
+            [bridge_resolved],
             0,
             stdout=b'{"content":"from-bridge"}',
             stderr=b"",
@@ -489,16 +545,21 @@ def test_llm_chat_complete_agent_cli_stdin_json_bridge():
     call_kw = run.call_args.kwargs
     assert call_kw["input"].decode("utf-8").startswith('{"version": "1"')
     assert '"user_prompt": "hi"' in call_kw["input"].decode("utf-8")
+    assert run.call_args[0][0][0] == bridge_resolved
 
 
-def test_llm_chat_complete_agent_cli_claude_code_json():
+def test_llm_chat_complete_agent_cli_claude_code_json(tmp_path):
     mod = _load_action_module("llm_chat_complete")
     ac = sys.modules["lib.agent_cli"]
+    fake_claude = tmp_path / "claude"
+    fake_claude.write_text("#!/bin/sh\n", encoding="utf-8")
+    fake_claude.chmod(0o755)
+    claude_resolved = str(fake_claude.resolve())
     act = mod.LlmChatComplete(
         config={
             "llm_access_mode": "agent_cli",
             "agent_cli_profile": "claude_code",
-            "agent_cli_binary": "claude",
+            "agent_cli_binary": claude_resolved,
         }
     )
     payload = json.dumps({"type": "result", "subtype": "success", "result": "hello-claude"}).encode(
@@ -506,7 +567,7 @@ def test_llm_chat_complete_agent_cli_claude_code_json():
     )
     with mock.patch.object(ac.subprocess, "run") as run:
         run.return_value = CompletedProcess(
-            ["claude", "-p", "u", "--output-format", "json", "--bare"],
+            [claude_resolved, "-p", "u", "--output-format", "json", "--bare"],
             0,
             stdout=payload,
             stderr=b"",
@@ -515,9 +576,29 @@ def test_llm_chat_complete_agent_cli_claude_code_json():
     assert ok is True
     assert body["content"] == "hello-claude"
     argv = run.call_args[0][0]
-    assert argv[0] == "claude"
+    assert argv[0] == claude_resolved
     assert argv[1] == "-p"
     assert argv[2] == "u"
+
+
+def test_llm_chat_complete_agent_cli_rejects_executable_outside_allowed_prefix(tmp_path):
+    mod = _load_action_module("llm_chat_complete")
+    bridge = tmp_path / "bridge.sh"
+    bridge.write_text("#!/bin/sh\n", encoding="utf-8")
+    bridge.chmod(0o755)
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    act = mod.LlmChatComplete(
+        config={
+            "llm_access_mode": "agent_cli",
+            "agent_cli_profile": "stdin_json_bridge",
+            "agent_cli_executable": str(bridge.resolve()),
+            "agent_cli_allowed_executable_prefix": str(allowed.resolve()),
+        }
+    )
+    ok, err = act.run(user_prompt="hi")
+    assert ok is False
+    assert "agent_cli_allowed_executable_prefix" in err
 
 
 def test_llm_chat_complete_agent_cli_custom_raw_stdout():

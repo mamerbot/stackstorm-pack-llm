@@ -5,6 +5,9 @@
 # llm_provider: openai   # default; or anthropic | cursor (used for defaults and http path)
 llm_chat_completions_url: "https://api.openai.com/v1/chat/completions"
 llm_model: "gpt-4o-mini"
+# llm_call_timeout_seconds: 120   # caps llm_chat_complete HTTP + agent_cli timeouts (action param cannot exceed this)
+# max_user_prompt_bytes: 32768
+# max_system_prompt_bytes: 32768
 # api_token: "replace-me"   # optional if OPENAI_API_KEY / ANTHROPIC_API_KEY / CURSOR_API_KEY is set
 
 # Anthropic example:
@@ -30,6 +33,7 @@ llm_model: "gpt-4o-mini"
 # llm_access_mode: agent_cli
 # agent_cli_profile: stdin_json_bridge
 # agent_cli_executable: /opt/stackstorm/scripts/llm_agent_bridge.sh
+# agent_cli_allowed_executable_prefix: /opt/stackstorm/scripts   # optional: require resolved binaries under this path
 #
 # 3) Custom argv (e.g. Codex / Cursor / OpenCode — flags vary by version; use a wrapper script
 #    or pin argv here). Example shape only:
