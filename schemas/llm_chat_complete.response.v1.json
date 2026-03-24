@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mamerbot/stackstorm-pack-llm/schemas/llm_chat_complete.response.v1.json",
+  "title": "llm_chat_complete success result",
+  "description": "Shape of result.result on successful llm_chat_complete runs (additive metadata envelope, GAP-6).",
+  "type": "object",
+  "required": ["raw", "content", "metadata"],
+  "additionalProperties": true,
+  "properties": {
+    "raw": {
+      "description": "Provider-native response object (unchanged)."
+    },
+    "content": {
+      "type": "string",
+      "description": "Normalized assistant text extracted from the provider response."
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "access_mode",
+        "provider",
+        "model",
+        "tokens_used",
+        "exit_code"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "access_mode": {
+          "type": "string",
+          "enum": ["http", "agent_cli"]
+        },
+        "provider": {
+          "type": "string",
+          "description": "Pack llm_provider value (openai, anthropic, cursor)."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model id sent to the provider or documented for agent_cli."
+        },
+        "tokens_used": {
+          "type": ["integer", "null"],
+          "description": "Total tokens when reported by HTTP APIs; null for agent_cli."
+        },
+        "exit_code": {
+          "type": ["integer", "null"],
+          "description": "Subprocess exit code for agent_cli successes; null for HTTP."
+        }
+      }
+    }
+  }
+}

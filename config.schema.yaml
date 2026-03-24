@@ -44,7 +44,10 @@ agent_cli_argv_json:
   description: >
     JSON array of argv strings for agent_cli_profile=custom. Placeholders
     {combined_prompt}, {user_prompt}, {system_prompt}, {model}, {temperature}
-    are substituted per argument (no shell).
+    are substituted per argument (no shell). Treat expanded values as untrusted:
+    any argument that contains a placeholder is rejected if the result includes
+    NUL or newlines, or starts with "-" after trim (prevents flag injection from
+    prompts). Static argv tokens such as "-c" are unchanged.
   type: string
   required: false
 agent_cli_stdout_kind:
@@ -95,6 +98,28 @@ llm_call_timeout_seconds:
   type: integer
   required: false
   default: 120
+max_response_bytes:
+  description: >
+    Maximum raw byte length of stdout from agent_cli_profile=stdin_json_bridge before
+    JSON parsing (default 1 MiB, hard-capped). Prevents huge stdout from exhausting
+    memory in json.loads().
+  type: integer
+  required: false
+  default: 1048576
+llm_tls_verify:
+  description: >
+    When llm_access_mode=http, passed to requests as verify= (default true).
+    Set false only for controlled dev/test environments.
+  type: boolean
+  required: false
+  default: true
+llm_tls_ca_bundle:
+  description: >
+    Optional path to a CA bundle file for HTTPS verification when llm_access_mode=http
+    (requests verify=). When set and llm_tls_verify is not false, this path is used
+    instead of the default trust store.
+  type: string
+  required: false
 max_user_prompt_bytes:
   description: >
     Maximum UTF-8 byte length for user_prompt on llm_chat_complete (enforced before I/O).
