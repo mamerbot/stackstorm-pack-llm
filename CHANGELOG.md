@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `validate_task_bundle`: avoid `zip(..., strict=True)` so task-bundle validation runs on StackStorm pack virtualenvs older than Python 3.10.
+- `validate_task_bundle`: iterate tasks/steps by index instead of `zip(..., strict=True)` so validation runs on StackStorm pack virtualenvs older than Python 3.10 (and satisfies Ruff).
 - CI (st2-docker): remove `st2 run ... --wait` — not supported on StackStorm 3.8 CLI (`st2 run` already blocks until completion).
 
 ## [0.2.0] - 2026-03-24
@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CI: **stackstorm-pack** job runs Orquesta workflow `llm_plan_task.plan_to_tasks` with goal
   `ci-offline-plan-to-tasks` and `structured_plan_json` from `tests/fixtures/plan_minimal.json`
-  (host `PLAN_JSON` + `st2 run ... --wait`) so workflow registration and cross-step data passing are
+  (host `PLAN_JSON` + blocking `st2 run`) so workflow registration and cross-step data passing are
   exercised in st2-docker alongside standalone actions.
 - CI: after `validate_plan`, the **stackstorm-pack** job runs `llm_plan_task.validate_task_bundle`
   with `tests/fixtures/bundle_minimal.json` inside st2-docker (same host `BUNDLE_JSON` env pattern as
