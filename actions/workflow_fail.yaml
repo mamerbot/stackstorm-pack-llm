@@ -1,0 +1,14 @@
+---
+name: workflow_fail
+pack: llm_plan_task
+runner_type: python-script
+enabled: true
+entry_point: workflow_fail.py
+description: >
+  Internal helper for Orquesta workflows: fail execution with a visible message.
+  Used instead of core.fail, which is not registered on some StackStorm 3.8 images.
+parameters:
+  message:
+    type: string
+    description: Error text surfaced on the failed execution.
+    required: true

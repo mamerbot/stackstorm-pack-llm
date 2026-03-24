@@ -1,8 +1,8 @@
 # Orquesta (StackStorm): success path is unchanged. When pack actions return
 # (False, message) the task enters failed(); matching branches publish
-# failure_stage, failure_message, and failure_raw, then core.fail runs so the
-# workflow execution is visibly failed while ctx/output still expose the fields
-# below for operators and downstream automation.
+# failure_stage, failure_message, and failure_raw, then workflow_fail runs so the
+# execution is visibly failed while ctx/output still expose the fields below.
+# (core.fail is not registered on some StackStorm 3.8 deployments.)
 version: 1.0
 description: >
   End-to-end path from a goal (and optional LLM JSON plan) to a normalized task
@@ -52,6 +52,6 @@ tasks:
           - failure_raw: <% result() %>
         do: finalize_failure
   finalize_failure:
-    action: core.fail
+    action: llm_plan_task.workflow_fail
     input:
       message: <% ctx(failure_message) %>
