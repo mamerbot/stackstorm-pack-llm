@@ -29,7 +29,9 @@ REQUIRED_FILES = [
     "actions/plan_to_tasks.yaml",
     "actions/workflows/plan_to_tasks.yaml",
     "actions/lib/plan_model.py",
+    "actions/lib/chat_metadata.py",
     "aliases/plan_to_tasks.yaml",
+    "schemas/llm_chat_complete.response.v1.json",
 ]
 
 

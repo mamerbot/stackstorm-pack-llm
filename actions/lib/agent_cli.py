@@ -399,4 +399,6 @@ def run_agent_cli(
             hint = " (stderr: %s)" % err[:500]
         return False, "%s%s" % (parsed_or_err, hint)
 
+    if isinstance(parsed_or_err, dict):
+        parsed_or_err["agent_exit_code"] = int(proc.returncode)
     return True, parsed_or_err

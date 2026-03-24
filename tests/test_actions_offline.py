@@ -14,11 +14,20 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from unittest import mock
 
+import jsonschema
 import pytest
 import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 ACTIONS = ROOT / "actions"
+
+_CHAT_COMPLETE_RESPONSE_SCHEMA = json.loads(
+    (ROOT / "schemas/llm_chat_complete.response.v1.json").read_text(encoding="utf-8")
+)
+
+
+def _assert_llm_chat_complete_success_schema(body: dict) -> None:
+    jsonschema.validate(instance=body, schema=_CHAT_COMPLETE_RESPONSE_SCHEMA)
 
 
 def _install_fake_st2() -> None:
@@ -377,6 +386,11 @@ def test_llm_chat_complete_openai_default_url_without_config_url():
         ok, body = act.run(user_prompt="hi")
     assert ok is True
     assert body["content"] == "ok"
+    _assert_llm_chat_complete_success_schema(body)
+    assert body["metadata"]["access_mode"] == "http"
+    assert body["metadata"]["provider"] == "openai"
+    assert body["metadata"]["tokens_used"] is None
+    assert body["metadata"]["exit_code"] is None
     args, kwargs = post.call_args
     assert args[0] == "https://api.openai.com/v1/chat/completions"
     assert kwargs.get("timeout") == 60
@@ -465,6 +479,10 @@ def test_llm_chat_complete_anthropic_messages_shape(monkeypatch):
         ok, body = act.run(user_prompt="u", system_prompt="sys")
     assert ok is True
     assert body["content"] == "hello"
+    _assert_llm_chat_complete_success_schema(body)
+    assert body["metadata"]["provider"] == "anthropic"
+    assert body["metadata"]["model"] == "claude-3-5-sonnet-20241022"
+    assert body["metadata"]["tokens_used"] is None
     h = post.call_args.kwargs["headers"]
     assert h["x-api-key"] == "ant-env"
     assert h["anthropic-version"] == "2023-06-01"
@@ -492,6 +510,8 @@ def test_llm_chat_complete_cursor_bearer_with_custom_url(monkeypatch):
         ok, body = act.run(user_prompt="p")
     assert ok is True
     assert body["content"] == "c"
+    _assert_llm_chat_complete_success_schema(body)
+    assert body["metadata"]["provider"] == "cursor"
     assert post.call_args.kwargs["headers"]["Authorization"] == "Bearer cur-env"
 
 
@@ -544,6 +564,11 @@ def test_llm_chat_complete_agent_cli_stdin_json_bridge(tmp_path):
     assert ok is True
     assert body["content"] == "from-bridge"
     assert body["raw"]["content"] == "from-bridge"
+    _assert_llm_chat_complete_success_schema(body)
+    assert body["metadata"]["access_mode"] == "agent_cli"
+    assert body["metadata"]["exit_code"] == 0
+    assert body["metadata"]["tokens_used"] is None
+    assert "agent_exit_code" not in body
     call_kw = run.call_args.kwargs
     assert call_kw["input"].decode("utf-8").startswith('{"version": "1"')
     assert '"user_prompt": "hi"' in call_kw["input"].decode("utf-8")
@@ -577,6 +602,8 @@ def test_llm_chat_complete_agent_cli_claude_code_json(tmp_path):
         ok, body = act.run(user_prompt="u")
     assert ok is True
     assert body["content"] == "hello-claude"
+    _assert_llm_chat_complete_success_schema(body)
+    assert body["metadata"]["exit_code"] == 0
     argv = run.call_args[0][0]
     assert argv[0] == claude_resolved
     assert argv[1] == "-p"
@@ -624,6 +651,7 @@ def test_llm_chat_complete_agent_cli_custom_raw_stdout():
         ok, body = act.run(user_prompt="ping")
     assert ok is True
     assert body["content"] == "ping"
+    _assert_llm_chat_complete_success_schema(body)
 
 
 def test_llm_chat_complete_llm_tls_verify_false():
@@ -643,6 +671,7 @@ def test_llm_chat_complete_llm_tls_verify_false():
         ok, body = act.run(user_prompt="hi")
     assert ok is True
     assert body["content"] == "ok"
+    _assert_llm_chat_complete_success_schema(body)
     assert post.call_args.kwargs.get("verify") is False
 
 
@@ -662,6 +691,7 @@ def test_llm_chat_complete_llm_tls_ca_bundle():
         }
         ok, body = act.run(user_prompt="hi")
     assert ok is True
+    _assert_llm_chat_complete_success_schema(body)
     assert post.call_args.kwargs.get("verify") == "/etc/ssl/custom.pem"
 
 
@@ -681,6 +711,7 @@ def test_llm_chat_complete_agent_cli_custom_allows_static_dash_c():
         ok, body = act.run(user_prompt="hi")
     assert ok is True
     assert body["content"] == "hi"
+    _assert_llm_chat_complete_success_schema(body)
     argv = run.call_args[0][0]
     assert argv[1] == "-c"
     assert argv[2] == "echo hi"
@@ -743,6 +774,7 @@ def test_llm_chat_complete_happy_path():
     mod = _load_action_module("llm_chat_complete")
     payload = {
         "choices": [{"message": {"content": "  hello  "}}],
+        "usage": {"prompt_tokens": 3, "completion_tokens": 4, "total_tokens": 7},
     }
     act = mod.LlmChatComplete(
         config={
@@ -756,4 +788,42 @@ def test_llm_chat_complete_happy_path():
         ok, body = act.run(user_prompt="x")
     assert ok is True
     assert body["content"] == "hello"
+    _assert_llm_chat_complete_success_schema(body)
+    assert body["metadata"]["tokens_used"] == 7
     post.assert_called_once()
+
+
+def test_llm_chat_complete_openai_tokens_used_sums_prompt_and_completion():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(
+        config={
+            "llm_chat_completions_url": "https://example.invalid/v1/chat/completions",
+            "api_token": "t",
+        }
+    )
+    payload = {
+        "choices": [{"message": {"content": "z"}}],
+        "usage": {"prompt_tokens": 5, "completion_tokens": 6},
+    }
+    with mock.patch("requests.post") as post:
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = payload
+        ok, body = act.run(user_prompt="x")
+    assert ok is True
+    assert body["metadata"]["tokens_used"] == 11
+
+
+def test_llm_chat_complete_anthropic_tokens_used_from_usage(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(config={"llm_provider": "anthropic"})
+    payload = {
+        "content": [{"type": "text", "text": "yo"}],
+        "usage": {"input_tokens": 9, "output_tokens": 1},
+    }
+    with mock.patch("requests.post") as post:
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = payload
+        ok, body = act.run(user_prompt="u")
+    assert ok is True
+    assert body["metadata"]["tokens_used"] == 10
