@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-24
+
 ### Added
 
 - CI: **stackstorm-pack** job runs Orquesta workflow `llm_plan_task.plan_to_tasks` with goal

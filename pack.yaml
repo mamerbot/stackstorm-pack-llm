@@ -6,7 +6,7 @@ description: >
   structured plans and executable task lists. Designed to pair with an
   external LLM (you supply JSON) or to run in a deterministic "template" mode
   for testing and wiring.
-version: 0.1.0
+version: 0.2.0
 author: Emergent / Paperclip
 email: opensource@example.com
 keywords:
