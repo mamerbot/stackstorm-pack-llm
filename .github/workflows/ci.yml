@@ -143,14 +143,15 @@ jobs:
 
           # Execute a python-script action (offline fixture; no LLM keys) — catches runner/import regressions
           export PLAN_JSON="$(jq -c . "${GITHUB_WORKSPACE}/tests/fixtures/plan_minimal.json")"
+          # StackStorm 3.8 st2 CLI has no --wait; `st2 run` blocks until the execution finishes.
           docker compose exec -T -e PLAN_JSON st2client bash -lc \
-            'st2 run llm_plan_task.validate_plan plan="$PLAN_JSON" --wait'
+            'st2 run llm_plan_task.validate_plan plan="$PLAN_JSON"'
 
           export BUNDLE_JSON="$(jq -c . "${GITHUB_WORKSPACE}/tests/fixtures/bundle_minimal.json")"
           docker compose exec -T -e BUNDLE_JSON st2client bash -lc \
-            'st2 run llm_plan_task.validate_task_bundle bundle="$BUNDLE_JSON" --wait'
+            'st2 run llm_plan_task.validate_task_bundle bundle="$BUNDLE_JSON"'
 
           # Orquesta workflow plan_from_goal → tasks_from_plan (offline fixture; catches workflow registration / wiring)
           export PLAN_JSON="$(jq -c . "${GITHUB_WORKSPACE}/tests/fixtures/plan_minimal.json")"
           docker compose exec -T -e PLAN_JSON st2client bash -lc \
-            'st2 run llm_plan_task.plan_to_tasks goal="ci-offline-plan-to-tasks" structured_plan_json="$PLAN_JSON" --wait'
+            'st2 run llm_plan_task.plan_to_tasks goal="ci-offline-plan-to-tasks" structured_plan_json="$PLAN_JSON"'
