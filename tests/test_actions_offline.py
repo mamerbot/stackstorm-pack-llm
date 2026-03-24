@@ -380,6 +380,7 @@ def test_llm_chat_complete_openai_default_url_without_config_url():
     args, kwargs = post.call_args
     assert args[0] == "https://api.openai.com/v1/chat/completions"
     assert kwargs.get("timeout") == 60
+    assert kwargs.get("verify") is True
 
 
 def test_llm_chat_complete_http_timeout_uses_config_cap():
@@ -398,6 +399,7 @@ def test_llm_chat_complete_http_timeout_uses_config_cap():
         ok, _ = act.run(user_prompt="hi", timeout_seconds=90)
     assert ok is True
     assert post.call_args.kwargs.get("timeout") == 30
+    assert post.call_args.kwargs.get("verify") is True
 
 
 def test_llm_chat_complete_http_timeout_error_message():
@@ -622,6 +624,119 @@ def test_llm_chat_complete_agent_cli_custom_raw_stdout():
         ok, body = act.run(user_prompt="ping")
     assert ok is True
     assert body["content"] == "ping"
+
+
+def test_llm_chat_complete_llm_tls_verify_false():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(
+        config={
+            "api_token": "t",
+            "llm_chat_completions_url": "https://example.invalid/v1/chat/completions",
+            "llm_tls_verify": False,
+        }
+    )
+    with mock.patch("requests.post") as post:
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {
+            "choices": [{"message": {"content": "ok"}}],
+        }
+        ok, body = act.run(user_prompt="hi")
+    assert ok is True
+    assert body["content"] == "ok"
+    assert post.call_args.kwargs.get("verify") is False
+
+
+def test_llm_chat_complete_llm_tls_ca_bundle():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(
+        config={
+            "api_token": "t",
+            "llm_chat_completions_url": "https://example.invalid/v1/chat/completions",
+            "llm_tls_ca_bundle": "/etc/ssl/custom.pem",
+        }
+    )
+    with mock.patch("requests.post") as post:
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {
+            "choices": [{"message": {"content": "ok"}}],
+        }
+        ok, body = act.run(user_prompt="hi")
+    assert ok is True
+    assert post.call_args.kwargs.get("verify") == "/etc/ssl/custom.pem"
+
+
+def test_llm_chat_complete_agent_cli_custom_allows_static_dash_c():
+    mod = _load_action_module("llm_chat_complete")
+    ac = sys.modules["lib.agent_cli"]
+    act = mod.LlmChatComplete(
+        config={
+            "llm_access_mode": "agent_cli",
+            "agent_cli_profile": "custom",
+            "agent_cli_stdout_kind": "raw_text",
+            "agent_cli_argv_json": '["/bin/sh", "-c", "echo {user_prompt}"]',
+        }
+    )
+    with mock.patch.object(ac.subprocess, "run") as run:
+        run.return_value = CompletedProcess([], 0, stdout=b"hi\n", stderr=b"")
+        ok, body = act.run(user_prompt="hi")
+    assert ok is True
+    assert body["content"] == "hi"
+    argv = run.call_args[0][0]
+    assert argv[1] == "-c"
+    assert argv[2] == "echo hi"
+
+
+def test_llm_chat_complete_agent_cli_custom_rejects_flag_like_prompt():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(
+        config={
+            "llm_access_mode": "agent_cli",
+            "agent_cli_profile": "custom",
+            "agent_cli_stdout_kind": "raw_text",
+            "agent_cli_argv_json": '["/bin/echo", "{user_prompt}"]',
+        }
+    )
+    ok, err = act.run(user_prompt="--evil")
+    assert ok is False
+    assert "placeholder expansion" in err
+
+
+def test_llm_chat_complete_agent_cli_custom_rejects_newline_in_expansion():
+    mod = _load_action_module("llm_chat_complete")
+    act = mod.LlmChatComplete(
+        config={
+            "llm_access_mode": "agent_cli",
+            "agent_cli_profile": "custom",
+            "agent_cli_stdout_kind": "raw_text",
+            "agent_cli_argv_json": '["/bin/echo", "{user_prompt}"]',
+        }
+    )
+    ok, err = act.run(user_prompt="a\nb")
+    assert ok is False
+    assert "newline" in err.lower()
+
+
+def test_llm_chat_complete_agent_cli_stdin_json_bridge_max_response_bytes(tmp_path):
+    mod = _load_action_module("llm_chat_complete")
+    ac = sys.modules["lib.agent_cli"]
+    bridge = tmp_path / "bridge.sh"
+    bridge.write_text("#!/bin/sh\n", encoding="utf-8")
+    bridge.chmod(0o755)
+    bridge_resolved = str(bridge.resolve())
+    act = mod.LlmChatComplete(
+        config={
+            "llm_access_mode": "agent_cli",
+            "agent_cli_profile": "stdin_json_bridge",
+            "agent_cli_executable": bridge_resolved,
+            "max_response_bytes": 50,
+        }
+    )
+    huge = b'{"content":"' + (b"x" * 200) + b'"}'
+    with mock.patch.object(ac.subprocess, "run") as run:
+        run.return_value = CompletedProcess([bridge_resolved], 0, stdout=huge, stderr=b"")
+        ok, err = act.run(user_prompt="hi")
+    assert ok is False
+    assert "max_response_bytes" in err
 
 
 def test_llm_chat_complete_happy_path():
