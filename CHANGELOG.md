@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `plan_to_tasks` workflow: use pack action `workflow_fail` instead of `core.fail` (not registered on StackStorm 3.8 st2-docker CI).
 - `validate_task_bundle`: iterate tasks/steps by index instead of `zip(..., strict=True)` so validation runs on StackStorm pack virtualenvs older than Python 3.10 (and satisfies Ruff).
 - CI (st2-docker): remove `st2 run ... --wait` — not supported on StackStorm 3.8 CLI (`st2 run` already blocks until completion).
 
