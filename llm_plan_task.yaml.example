@@ -8,6 +8,9 @@ llm_model: "gpt-4o-mini"
 # llm_call_timeout_seconds: 120   # caps llm_chat_complete HTTP + agent_cli timeouts (action param cannot exceed this)
 # max_user_prompt_bytes: 32768
 # max_system_prompt_bytes: 32768
+# max_response_bytes: 1048576   # stdin_json_bridge: max raw stdout before JSON parse (default 1 MiB)
+# llm_tls_verify: true          # http mode: requests TLS verification (default true)
+# llm_tls_ca_bundle: /etc/ssl/certs/custom-ca.pem   # optional CA bundle path for http mode
 # api_token: "replace-me"   # optional if OPENAI_API_KEY / ANTHROPIC_API_KEY / CURSOR_API_KEY is set
 
 # Anthropic example:

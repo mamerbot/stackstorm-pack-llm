@@ -14,7 +14,18 @@ from typing import Any
 
 _STDIN_JSON_VERSION = "1"
 
+_DEFAULT_MAX_RESPONSE_BYTES = 1_048_576
+_HARD_CEILING_RESPONSE_BYTES = 16 * 1024 * 1024
+
 _PROFILES = frozenset({"stdin_json_bridge", "claude_code", "custom"})
+
+_CTX_KEYS = (
+    "combined_prompt",
+    "user_prompt",
+    "system_prompt",
+    "model",
+    "temperature",
+)
 
 _STDOUT_KINDS = frozenset({"json_content", "claude_code_result", "raw_text"})
 
@@ -123,6 +134,44 @@ def combined_prompt(user_prompt: str, system_prompt: str | None) -> str:
     return "%s\n\n%s" % (str(system_prompt).strip(), u)
 
 
+def _coerce_max_response_bytes(raw: Any) -> int:
+    """Upper bound on stdin_json_bridge raw stdout before JSON parse (GAP-7)."""
+
+    if raw is None:
+        return _DEFAULT_MAX_RESPONSE_BYTES
+    try:
+        v = int(raw)
+    except (TypeError, ValueError):
+        return _DEFAULT_MAX_RESPONSE_BYTES
+    return max(1, min(v, _HARD_CEILING_RESPONSE_BYTES))
+
+
+def _template_segment_used_substitution(segment: str) -> bool:
+    for k in _CTX_KEYS:
+        if "{%s}" % k in segment:
+            return True
+    return False
+
+
+def _validate_custom_argv_after_substitution(segment: str) -> tuple[bool, str]:
+    """Reject NUL/newlines and argv token injection via expanded placeholders (GAP-3)."""
+
+    if "\x00" in segment:
+        return False, "custom argv contains NUL after placeholder substitution"
+    if "\n" in segment or "\r" in segment:
+        return (
+            False,
+            "custom argv contains newline after placeholder substitution",
+        )
+    stripped = segment.strip()
+    if stripped.startswith("-"):
+        return (
+            False,
+            "custom argv placeholder expansion must not start with '-' (got %r)" % (segment[:120],),
+        )
+    return True, ""
+
+
 def _substitute_argv(
     template: list[str],
     *,
@@ -131,7 +180,7 @@ def _substitute_argv(
     system_prompt: str | None,
     model: str,
     temperature: float,
-) -> list[str]:
+) -> tuple[bool, str | list[str]]:
     ctx = {
         "combined_prompt": combined,
         "user_prompt": user_prompt,
@@ -141,11 +190,17 @@ def _substitute_argv(
     }
     out: list[str] = []
     for part in template:
-        s = str(part)
+        s0 = str(part)
+        had_ph = _template_segment_used_substitution(s0)
+        s = s0
         for k, v in ctx.items():
             s = s.replace("{%s}" % k, v)
+        if had_ph:
+            ok_v, err = _validate_custom_argv_after_substitution(s)
+            if not ok_v:
+                return False, err
         out.append(s)
-    return out
+    return True, out
 
 
 def _parse_stdout_payload(stdout: str, kind: str) -> tuple[bool, Any]:
@@ -276,7 +331,7 @@ def run_agent_cli(
         ok_a, tpl_or_err = parse_custom_argv_json(cfg.get("agent_cli_argv_json"))
         if not ok_a:
             return False, tpl_or_err
-        argv = _substitute_argv(
+        ok_sub, argv_or_err = _substitute_argv(
             tpl_or_err,
             combined=combined,
             user_prompt=user_prompt.strip(),
@@ -284,6 +339,9 @@ def run_agent_cli(
             model=model,
             temperature=float(temperature),
         )
+        if not ok_sub:
+            return False, argv_or_err
+        argv = argv_or_err
         if not argv:
             return False, "agent_cli_argv_json must expand to a non-empty argv"
         ok_path, path_or_err = resolve_validated_cli_path(
@@ -310,7 +368,20 @@ def run_agent_cli(
     except OSError as exc:
         return False, "failed to spawn agent CLI: %s" % exc
 
-    out = proc.stdout.decode("utf-8", errors="replace")
+    raw_out = proc.stdout
+    if not isinstance(raw_out, (bytes, bytearray)):
+        raw_out = b""
+
+    if profile == "stdin_json_bridge" and stdout_kind == "json_content":
+        limit = _coerce_max_response_bytes(cfg.get("max_response_bytes"))
+        if len(raw_out) > limit:
+            return (
+                False,
+                "stdin_json_bridge stdout exceeds max_response_bytes "
+                "(got %d bytes, limit %d)" % (len(raw_out), limit),
+            )
+
+    out = bytes(raw_out).decode("utf-8", errors="replace")
     err = proc.stderr.decode("utf-8", errors="replace").strip()
 
     if proc.returncode != 0:

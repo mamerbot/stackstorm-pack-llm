@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- `llm_chat_complete` (`llm_access_mode=http`): optional `llm_tls_ca_bundle` and `llm_tls_verify` forwarded to `requests` `verify=` for custom CA / controlled dev environments.
+- `llm_chat_complete` (`agent_cli` / `stdin_json_bridge`): configurable `max_response_bytes` (default 1 MiB) caps raw stdout **before** `json.loads()`.
+- `llm_chat_complete` (`agent_cli` / `custom`): argv segments that use prompt placeholders reject NUL/newlines and values that trim to a leading `-` (flag injection), while static argv tokens are unchanged.
 - `llm_chat_complete`: enforce configurable UTF-8 byte caps on `user_prompt` / `system_prompt` and reject NUL bytes before any HTTP or subprocess I/O (`max_user_prompt_bytes` / `max_system_prompt_bytes`, default 32 KiB each).
 - `llm_chat_complete` agent_cli mode: resolve `agent_cli_executable` / `agent_cli_binary` / custom argv0 to a real path, require a regular executable file, and optionally enforce `agent_cli_allowed_executable_prefix`.
 - Configurable `llm_call_timeout_seconds` (default 120) caps both HTTP `requests` timeouts and `agent_cli` subprocess timeouts (action `timeout_seconds` cannot exceed it).
