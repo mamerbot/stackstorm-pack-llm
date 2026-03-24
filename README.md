@@ -290,7 +290,7 @@ st2 run llm_plan_task.tasks_from_plan \
 
 #### HTTP access (`llm_access_mode: http`, default)
 
-Set `llm_provider` to `openai` (default), `anthropic`, or `cursor`. Use `api_token` or the matching environment variable on the StackStorm action runner: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `CURSOR_API_KEY`. `llm_chat_completions_url` defaults for OpenAI and Anthropic; **cursor** requires an explicit OpenAI-compatible URL (see `llm_plan_task.yaml.example`). Optional: `cursor_api_basic_auth`, `llm_max_tokens` (Anthropic).
+Set `llm_provider` to `openai` (default), `anthropic`, or `cursor`. Use `api_token` or the matching environment variable on the StackStorm action runner: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `CURSOR_API_KEY`. `llm_chat_completions_url` defaults for OpenAI and Anthropic; **cursor** requires an explicit OpenAI-compatible URL (see `llm_plan_task.yaml.example`). Optional: `cursor_api_basic_auth`, `llm_max_tokens` (Anthropic). TLS: `llm_tls_verify` (default true) and optional `llm_tls_ca_bundle` path are passed to `requests` as `verify=`.
 
 #### Agent / ACP-style access (`llm_access_mode: agent_cli`)
 
@@ -299,8 +299,8 @@ Use this when the **model should authenticate like a coding agent** (interactive
 | Profile | What runs | Operator wiring |
 | --- | --- | --- |
 | `claude_code` | `agent_cli_binary` (default `claude`) with `-p`, `--output-format=json`, `--bare` | Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) on the **same host/user context as the StackStorm action runner** (or a dedicated service account that has completed `claude` login). Set `llm_model` for documentation only; the CLI uses its configured model unless you extend argv via `custom`. |
-| `stdin_json_bridge` | `agent_cli_executable` only | Process reads **one JSON line** on stdin (`version`, `user_prompt`, `system_prompt`, `model`, `temperature`) and prints **one JSON object** on stdout with a string field **`content`**. Use this for **Cursor Agent**, **OpenAI Codex CLI**, **OpenCode**, or any tool whose flags change often: put vendor-specific logic in your script and keep the pack config to a single executable path. |
-| `custom` | `agent_cli_argv_json` (JSON array of argv strings) | Substitute `{combined_prompt}`, `{user_prompt}`, `{system_prompt}`, `{model}`, `{temperature}` in each argument. Set `agent_cli_stdout_kind` to `raw_text`, `json_content`, or `claude_code_result` to match the program’s stdout. |
+| `stdin_json_bridge` | `agent_cli_executable` only | Process reads **one JSON line** on stdin (`version`, `user_prompt`, `system_prompt`, `model`, `temperature`) and prints **one JSON object** on stdout with a string field **`content`**. Use this for **Cursor Agent**, **OpenAI Codex CLI**, **OpenCode**, or any tool whose flags change often: put vendor-specific logic in your script and keep the pack config to a single executable path. Raw stdout size is capped by `max_response_bytes` (default 1 MiB) **before** JSON parsing. |
+| `custom` | `agent_cli_argv_json` (JSON array of argv strings) | Substitute `{combined_prompt}`, `{user_prompt}`, `{system_prompt}`, `{model}`, `{temperature}` in each argument. Set `agent_cli_stdout_kind` to `raw_text`, `json_content`, or `claude_code_result` to match the program’s stdout. Arguments that include a placeholder are rejected if the expanded value contains NUL/newlines or starts with `-` after trim (mitigates flag injection from prompts); static argv tokens like `-c` are unchanged. |
 
 **Security:** `agent_cli` runs arbitrary executables with the StackStorm runner’s privileges. Prefer dedicated users, `agent_cli_working_directory`, and read-only images; review argv and bridge scripts in code review.
 

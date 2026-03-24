@@ -15,6 +15,7 @@ from lib.llm_providers import (
     default_model_for,
     resolve_api_token,
     resolve_chat_url,
+    resolve_requests_verify,
 )
 from st2actions.runners.pythonrunner import Action
 
@@ -108,6 +109,7 @@ class LlmChatComplete(Action):
                 headers=headers,
                 data=json.dumps(body),
                 timeout=effective_timeout,
+                verify=resolve_requests_verify(cfg),
             )
         except requests.Timeout:
             return False, "LLM HTTP call timed out after %s seconds" % effective_timeout

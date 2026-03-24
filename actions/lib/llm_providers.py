@@ -107,3 +107,32 @@ def anthropic_max_tokens(cfg: dict[str, Any] | None) -> int:
     except (TypeError, ValueError):
         return 4096
     return max(1, min(n, 200_000))
+
+
+def resolve_requests_verify(cfg: dict[str, Any] | None) -> bool | str:
+    """TLS verification for requests: verify= bool or path to CA bundle (GAP-5)."""
+
+    cfg = cfg or {}
+    raw_verify = cfg.get("llm_tls_verify")
+    raw_bundle = cfg.get("llm_tls_ca_bundle")
+
+    bundle: str | None = None
+    if isinstance(raw_bundle, str) and raw_bundle.strip():
+        bundle = raw_bundle.strip()
+
+    verify_off = False
+    if raw_verify is False:
+        verify_off = True
+    elif isinstance(raw_verify, str) and raw_verify.strip().lower() in (
+        "false",
+        "0",
+        "no",
+        "off",
+    ):
+        verify_off = True
+
+    if verify_off:
+        return False
+    if bundle is not None:
+        return bundle
+    return True
