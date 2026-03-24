@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `validate_task_bundle`: avoid `zip(..., strict=True)` so task-bundle validation runs on StackStorm pack virtualenvs older than Python 3.10.
 - CI (st2-docker): remove `st2 run ... --wait` — not supported on StackStorm 3.8 CLI (`st2 run` already blocks until completion).
 
 ## [0.2.0] - 2026-03-24

@@ -81,7 +81,8 @@ def _assert_task_bundle_invariants(bundle: dict[str, Any], plan: dict[str, Any])
     id_set = set(task_ids)
     if len(id_set) != len(task_ids):
         raise TaskBundleValidationError("bundle.tasks contains duplicate task ids")
-    for i, (t, s) in enumerate(zip(tasks, steps, strict=True)):
+    # Lengths already matched above; avoid zip(..., strict=) (requires Python 3.10+; ST2 pack venv may be older).
+    for i, (t, s) in enumerate(zip(tasks, steps)):
         exp_id = "task-%s" % s["id"]
         if t["id"] != exp_id:
             raise TaskBundleValidationError(
