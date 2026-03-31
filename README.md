@@ -312,7 +312,7 @@ st2 run llm_plan_task.llm_chat_complete \
   system_prompt="You are a terse assistant."
 ```
 
-**Example result** (`result.result`) — **illustrative**; provider JSON varies.
+**Example result** (`result.result`) — **illustrative**; provider JSON varies. Successful runs include an additive **`metadata`** envelope for auditing (`access_mode`, `provider`, `model`, `tokens_used` on HTTP when the API reports usage, `exit_code` on `agent_cli`). See `schemas/llm_chat_complete.response.v1.json`.
 
 ```json
 {
@@ -327,9 +327,17 @@ st2 run llm_plan_task.llm_chat_complete \
         "finish_reason": "stop",
         "message": { "role": "assistant", "content": "OK" }
       }
-    ]
+    ],
+    "usage": { "prompt_tokens": 10, "completion_tokens": 2, "total_tokens": 12 }
   },
-  "content": "OK"
+  "content": "OK",
+  "metadata": {
+    "access_mode": "http",
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "tokens_used": 12,
+    "exit_code": null
+  }
 }
 ```
 

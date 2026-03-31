@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `llm_chat_complete`: success responses include structured `metadata` (`access_mode`, `provider`, `model`, `tokens_used` for HTTP when available, `exit_code` for `agent_cli`); documented in README and `schemas/llm_chat_complete.response.v1.json`.
+
 ### Security
 
 - `llm_chat_complete` (`llm_access_mode=http`): optional `llm_tls_ca_bundle` and `llm_tls_verify` forwarded to `requests` `verify=` for custom CA / controlled dev environments.

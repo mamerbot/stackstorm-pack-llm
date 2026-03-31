@@ -6,6 +6,12 @@ import json
 import requests
 
 from lib.agent_cli import run_agent_cli
+from lib.chat_metadata import (
+    chat_metadata_agent_cli,
+    chat_metadata_http,
+    tokens_used_from_anthropic_payload,
+    tokens_used_from_openai_payload,
+)
 from lib.llm_prompt_limits import validate_chat_prompts
 from lib.llm_providers import (
     anthropic_max_tokens,
@@ -67,7 +73,7 @@ class LlmChatComplete(Action):
         model = (cfg.get("llm_model") or "").strip() or default_model_for(provider)
 
         if access_mode == "agent_cli":
-            return run_agent_cli(
+            ok_cli, data = run_agent_cli(
                 cfg,
                 user_prompt=user_prompt.strip(),
                 system_prompt=system_prompt,
@@ -75,6 +81,15 @@ class LlmChatComplete(Action):
                 temperature=temp,
                 timeout_seconds=effective_timeout,
             )
+            if not ok_cli or not isinstance(data, dict):
+                return ok_cli, data
+            exit_code = int(data.pop("agent_exit_code", 0))
+            data["metadata"] = chat_metadata_agent_cli(
+                provider=provider,
+                model=model,
+                exit_code=exit_code,
+            )
+            return True, data
 
         url = resolve_chat_url(cfg, provider)
         if not url:
@@ -89,6 +104,7 @@ class LlmChatComplete(Action):
 
         if provider == "anthropic":
             body, parse = self._anthropic_request_body(
+                provider=provider,
                 model=model,
                 user_prompt=user_prompt.strip(),
                 system_prompt=system_prompt,
@@ -97,6 +113,7 @@ class LlmChatComplete(Action):
             )
         else:
             body, parse = self._openai_compatible_request_body(
+                provider=provider,
                 model=model,
                 user_prompt=user_prompt.strip(),
                 system_prompt=system_prompt,
@@ -127,7 +144,9 @@ class LlmChatComplete(Action):
         return parse(payload)
 
     @staticmethod
-    def _openai_compatible_request_body(model, user_prompt, system_prompt, temperature):
+    def _openai_compatible_request_body(
+        provider, model, user_prompt, system_prompt, temperature
+    ):
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -147,12 +166,23 @@ class LlmChatComplete(Action):
             content = message.get("content")
             if not isinstance(content, str):
                 return False, "LLM response missing message.content string"
-            return True, {"raw": payload, "content": content.strip()}
+            tokens_used = tokens_used_from_openai_payload(payload)
+            return True, {
+                "raw": payload,
+                "content": content.strip(),
+                "metadata": chat_metadata_http(
+                    provider=provider,
+                    model=model,
+                    tokens_used=tokens_used,
+                ),
+            }
 
         return body, parse
 
     @staticmethod
-    def _anthropic_request_body(model, user_prompt, system_prompt, temperature, cfg):
+    def _anthropic_request_body(
+        provider, model, user_prompt, system_prompt, temperature, cfg
+    ):
         messages = [{"role": "user", "content": user_prompt}]
         body = {
             "model": model,
@@ -174,6 +204,15 @@ class LlmChatComplete(Action):
             content = "".join(parts).strip()
             if not content:
                 return False, "Anthropic response missing text content blocks"
-            return True, {"raw": payload, "content": content}
+            tokens_used = tokens_used_from_anthropic_payload(payload)
+            return True, {
+                "raw": payload,
+                "content": content,
+                "metadata": chat_metadata_http(
+                    provider=provider,
+                    model=model,
+                    tokens_used=tokens_used,
+                ),
+            }
 
         return body, parse
